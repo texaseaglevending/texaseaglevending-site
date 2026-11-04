@@ -185,12 +185,12 @@ html{scroll-behavior:smooth}
           <div class="eyebrow">For businesses</div>
           <h2>Request a free machine</h2>
           <p class="sub">Tell us about your location. We'll reply within one business day.</p>
-        <div id="lead-wrap">
-          <form id="lead" name="lead" method="POST" novalidate>
+        <div class="fwrap">
+          <form id="lead" class="tevform" data-category="New Machine Request" method="POST" novalidate>
+            <input type="hidden" name="category" value="New Machine Request">
             <input type="hidden" name="access_key" value="d6e5b101-bb3a-49ef-8ebc-456072534087">
-            <input type="hidden" name="subject" value="New machine request – Texas Eagle Vending website">
-            <input type="hidden" name="from_name" value="Texas Eagle Vending website">
-            <p class="hp"><label>Leave this unchecked <input id="botcheck" name="botcheck" type="checkbox" tabindex="-1" autocomplete="off"></label></p>
+                        <input type="hidden" name="from_name" value="Texas Eagle Vending website">
+            <p class="hp"><label>Leave this unchecked <input name="botcheck" type="checkbox" tabindex="-1" autocomplete="off" class="botcheck"></label></p>
             <div class="row2">
               <label for="f-name">Your name<input id="f-name" name="name" autocomplete="name" required></label>
               <label for="f-biz">Business name<input id="f-biz" name="business" autocomplete="organization" required></label>
@@ -217,7 +217,7 @@ html{scroll-behavior:smooth}
             <label for="f-msg">Anything else? <span class="opt">(optional)</span><textarea id="f-msg" name="message" placeholder="Hours, where a machine could go, products your people want"></textarea></label>
             <label for="f-text" style="display:flex;gap:10px;align-items:flex-start;font-weight:400;font-size:14px;color:var(--muted)"><input id="f-text" name="ok_to_text" type="checkbox" value="Yes" style="width:20px;min-height:20px;height:20px;margin-top:2px;flex:none">OK to text me about my request. Message and data rates may apply. Reply STOP to opt out.</label>
             <button class="btn" type="submit" style="width:100%">Request my free machine</button>
-            <p class="form-note" id="form-status" role="status" aria-live="polite">No cost, no obligation.</p>
+            <p class="form-note fstatus" role="status" aria-live="polite">No cost, no obligation.</p>
           </form>
         </div>
         </div>
@@ -225,52 +225,140 @@ html{scroll-behavior:smooth}
         <div id="view-customer" hidden>
           <a class="back" href="#choose">‹ Back</a>
           <div class="eyebrow">For customers</div>
-          <h2>Customer help</h2>
-          <p class="sub">Tell us what happened and we'll make it right. We review every request within 1–2 business days.</p>
-          <div id="cust-wrap">
-            <form id="cust" name="customer" method="POST" novalidate>
+          <h2>What can we help with?</h2>
+          <p class="sub">Pick the one that fits.</p>
+          <div class="choices">
+            <a class="choice" href="#refund">
+              <span class="choice-ico" aria-hidden="true"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></span>
+              <span class="choice-text"><strong>Something was wrong with my item</strong><span class="choice-sub">Damaged, expired, wrong item, or it didn't come out. Request a refund.</span></span>
+              <span class="choice-arrow" aria-hidden="true">›</span>
+            </a>
+            <a class="choice" href="#payment">
+              <span class="choice-ico" aria-hidden="true"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20M6 15h4"/></svg></span>
+              <span class="choice-text"><strong>There's a problem with my card charge</strong><span class="choice-sub">Charged twice, wrong amount, charged but took nothing, or card declined.</span></span>
+              <span class="choice-arrow" aria-hidden="true">›</span>
+            </a>
+            <a class="choice" href="#suggest">
+              <span class="choice-ico" aria-hidden="true"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z"/></svg></span>
+              <span class="choice-text"><strong>I'd like to suggest a product</strong><span class="choice-sub">Tell us what you'd like to see in the machine.</span></span>
+              <span class="choice-arrow" aria-hidden="true">›</span>
+            </a>
+          </div>
+        </div>
+        <div id="view-refund" hidden>
+          <a class="back" href="#help">‹ Back</a>
+          <div class="eyebrow">For customers · Item problem</div>
+          <h2>Request a refund</h2>
+          <p class="sub">Tell us what went wrong and we'll make it right.</p>
+          <div class="fwrap">
+            <form class="tevform" data-category="Refund Request" method="POST" novalidate>
               <input type="hidden" name="access_key" value="d6e5b101-bb3a-49ef-8ebc-456072534087">
               <input type="hidden" name="from_name" value="Texas Eagle Vending website">
-              <p class="hp"><label>Leave this unchecked <input id="c-botcheck" name="botcheck" type="checkbox" tabindex="-1" autocomplete="off"></label></p>
-              <fieldset class="seg">
-                <legend>What do you need?</legend>
-                <label class="seg-opt"><input type="radio" name="request_type" value="Refund or charge problem" required checked><span>Refund or charge problem</span></label>
-                <label class="seg-opt"><input type="radio" name="request_type" value="Feedback"><span>Feedback</span></label>
-                <label class="seg-opt"><input type="radio" name="request_type" value="Product request"><span>Product request</span></label>
-              </fieldset>
+              <input type="hidden" name="category" value="Refund Request">
+              <p class="hp"><label>Leave this unchecked <input name="botcheck" type="checkbox" tabindex="-1" autocomplete="off" class="botcheck"></label></p>
               <div class="row2">
-                <label for="c-name">Your name<input id="c-name" name="name" autocomplete="name" required></label>
-                <label for="c-email">Email<input id="c-email" name="email" type="email" autocomplete="email" required></label>
+                <label for="r-name">Your name<input id="r-name" name="name" autocomplete="name" required></label>
+                <label for="r-email">Email<input id="r-email" name="email" type="email" autocomplete="email" required></label>
               </div>
               <div class="row2">
-                <label for="c-machine">Which machine?
-                  <select id="c-machine" name="machine" required>
+                <label for="r-machine">Which machine?
+                  <select id="r-machine" name="machine" required>
                     <option value="">Choose one</option>
                     <option>Austin – Snacks</option><option>Austin – Essentials / OTC</option><option>San Antonio – Snacks</option><option>San Antonio – Essentials / OTC</option><option>Not sure</option>
                   </select>
                 </label>
-                <label for="c-phone">Phone <span class="opt">(optional)</span><input id="c-phone" name="phone" type="tel" autocomplete="tel"></label>
+                <label for="r-phone">Phone <span class="opt">(optional)</span><input id="r-phone" name="phone" type="tel" autocomplete="tel"></label>
               </div>
-              <div id="refund-fields" class="subgroup">
-                <label for="c-issue">What happened?
-                  <select id="c-issue" name="issue">
+              <label for="r-item">What did you buy?<input id="r-item" name="product" required placeholder="e.g. Snickers, Advil, C4 Energy"></label>
+              <label for="r-issue">What was wrong?
+                <select id="r-issue" name="issue" required>
+                  <option value="">Choose one</option><option>Item was damaged</option><option>Item was expired or stale</option><option>I got the wrong item</option><option>The item didn't come out / got stuck</option><option>Other</option>
+                </select>
+              </label>
+              <div class="row2">
+                <label for="r-date">Date of purchase<input id="r-date" name="purchase_date" type="date" required></label>
+                <label for="r-time">About what time? <span class="opt">(optional)</span><input id="r-time" name="purchase_time" type="time"></label>
+              </div>
+              <div class="row2">
+                <label for="r-amount">Amount charged<input id="r-amount" name="amount_charged" inputmode="decimal" placeholder="$0.00" required></label>
+                <label for="r-last4">Last 4 digits of card <span class="opt">(to find your charge)</span><input id="r-last4" name="card_last4" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" placeholder="1234" required></label>
+              </div>
+              <p class="form-note">Refunds go back to the card you used. Never send your full card number.</p>
+              <label for="r-msg">Anything else? <span class="opt">(optional)</span><textarea id="r-msg" name="message" placeholder="Anything that helps us find your purchase"></textarea></label>
+              <button class="btn" type="submit" style="width:100%">Send refund request</button>
+              <p class="form-note fstatus" role="status" aria-live="polite">We'll reply by email within 1–2 business days.</p>
+            </form>
+          </div>
+        </div>
+        <div id="view-payment" hidden>
+          <a class="back" href="#help">‹ Back</a>
+          <div class="eyebrow">For customers · Card charge</div>
+          <h2>Card payment problem</h2>
+          <p class="sub">Tell us about the charge and we'll look it up.</p>
+          <div class="fwrap">
+            <form class="tevform" data-category="Card Payment Issue" method="POST" novalidate>
+              <input type="hidden" name="access_key" value="d6e5b101-bb3a-49ef-8ebc-456072534087">
+              <input type="hidden" name="from_name" value="Texas Eagle Vending website">
+              <input type="hidden" name="category" value="Card Payment Issue">
+              <p class="hp"><label>Leave this unchecked <input name="botcheck" type="checkbox" tabindex="-1" autocomplete="off" class="botcheck"></label></p>
+              <div class="row2">
+                <label for="p-name">Your name<input id="p-name" name="name" autocomplete="name" required></label>
+                <label for="p-email">Email<input id="p-email" name="email" type="email" autocomplete="email" required></label>
+              </div>
+              <div class="row2">
+                <label for="p-machine">Which machine?
+                  <select id="p-machine" name="machine" required>
                     <option value="">Choose one</option>
-                    <option>Charged for something I didn't take</option><option>Charged twice</option><option>Charged the wrong price</option><option>Item was damaged or expired</option><option>Door didn't open / couldn't get my item</option><option>Other</option>
+                    <option>Austin – Snacks</option><option>Austin – Essentials / OTC</option><option>San Antonio – Snacks</option><option>San Antonio – Essentials / OTC</option><option>Not sure</option>
                   </select>
                 </label>
-                <div class="row2">
-                  <label for="c-date">Date of purchase<input id="c-date" name="purchase_date" type="date"></label>
-                  <label for="c-time">About what time? <span class="opt">(optional)</span><input id="c-time" name="purchase_time" type="time"></label>
-                </div>
-                <div class="row2">
-                  <label for="c-amount">Amount charged<input id="c-amount" name="amount_charged" inputmode="decimal" placeholder="$0.00"></label>
-                  <label for="c-last4">Last 4 digits of card <span class="opt">(to find your charge)</span><input id="c-last4" name="card_last4" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" placeholder="1234"></label>
-                </div>
-                <p class="form-note">Refunds go back to the card you used. Never send your full card number.</p>
+                <label for="p-phone">Phone <span class="opt">(optional)</span><input id="p-phone" name="phone" type="tel" autocomplete="tel"></label>
               </div>
-              <label for="c-msg" id="c-msg-label">Tell us more<textarea id="c-msg" name="message" required placeholder="What happened, or what you'd like us to know"></textarea></label>
-              <button class="btn" type="submit" style="width:100%">Send to Texas Eagle Vending</button>
-              <p class="form-note" id="cust-status" role="status" aria-live="polite">We'll reply by email.</p>
+              <label for="p-issue">What happened?
+                <select id="p-issue" name="issue" required>
+                  <option value="">Choose one</option><option>I was charged twice</option><option>I was charged the wrong amount</option><option>I was charged but didn't take anything</option><option>My card was declined / the door wouldn't open</option><option>Other</option>
+                </select>
+              </label>
+              <div class="row2">
+                <label for="p-date">Date of purchase<input id="p-date" name="purchase_date" type="date" required></label>
+                <label for="p-time">About what time? <span class="opt">(optional)</span><input id="p-time" name="purchase_time" type="time"></label>
+              </div>
+              <div class="row2">
+                <label for="p-amount">Amount charged<input id="p-amount" name="amount_charged" inputmode="decimal" placeholder="$0.00" required></label>
+                <label for="p-last4">Last 4 digits of card <span class="opt">(to find your charge)</span><input id="p-last4" name="card_last4" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" placeholder="1234" required></label>
+              </div>
+              <p class="form-note">Refunds go back to the card you used. Never send your full card number.</p>
+              <label for="p-msg">Anything else? <span class="opt">(optional)</span><textarea id="p-msg" name="message" placeholder="What happened at the machine"></textarea></label>
+              <button class="btn" type="submit" style="width:100%">Send payment issue</button>
+              <p class="form-note fstatus" role="status" aria-live="polite">We'll reply by email within 1–2 business days.</p>
+            </form>
+          </div>
+        </div>
+        <div id="view-suggest" hidden>
+          <a class="back" href="#help">‹ Back</a>
+          <div class="eyebrow">For customers · Product idea</div>
+          <h2>Suggest a product</h2>
+          <p class="sub">We stock what our customers ask for.</p>
+          <div class="fwrap">
+            <form class="tevform" data-category="Product Suggestion" method="POST" novalidate>
+              <input type="hidden" name="access_key" value="d6e5b101-bb3a-49ef-8ebc-456072534087">
+              <input type="hidden" name="from_name" value="Texas Eagle Vending website">
+              <input type="hidden" name="category" value="Product Suggestion">
+              <p class="hp"><label>Leave this unchecked <input name="botcheck" type="checkbox" tabindex="-1" autocomplete="off" class="botcheck"></label></p>
+              <div class="row2">
+                <label for="s-name">Your name <span class="opt">(optional)</span><input id="s-name" name="name" autocomplete="name"></label>
+                <label for="s-email">Email <span class="opt">(optional, if you'd like a reply)</span><input id="s-email" name="email" type="email" autocomplete="email"></label>
+              </div>
+              <label for="s-machine">Which machine?
+                  <select id="s-machine" name="machine" required>
+                    <option value="">Choose one</option>
+                    <option>Austin – Snacks</option><option>Austin – Essentials / OTC</option><option>San Antonio – Snacks</option><option>San Antonio – Essentials / OTC</option><option>Not sure</option>
+                  </select>
+                </label>
+              <label for="s-item">What would you like us to stock?<input id="s-item" name="product" required placeholder="Brand and product, e.g. Celsius Peach Vibe"></label>
+              <label for="s-msg">Any other feedback? <span class="opt">(optional)</span><textarea id="s-msg" name="message" placeholder="Prices, favorites, anything you'd like us to know"></textarea></label>
+              <button class="btn" type="submit" style="width:100%">Send suggestion</button>
+              <p class="form-note fstatus" role="status" aria-live="polite">We'll reply by email within 1–2 business days.</p>
             </form>
           </div>
         </div>
@@ -373,53 +461,33 @@ html{scroll-behavior:smooth}
 
 <script>
 (function(){
-  var form=document.getElementById('lead'), status=document.getElementById('form-status'), wrap=document.getElementById('lead-wrap');
+  var views={'':'choose','choose':'choose','get-a-machine':'business','help':'customer','refund':'refund','payment':'payment','suggest':'suggest'};
+  var thanks={'New Machine Request':'We\u2019ll reach out within one business day to set up a quick visit.','Product Suggestion':'Thanks for the idea. We review every suggestion when we plan restocks.'};
   function route(){
-    var h=location.hash.replace('#','');
-    var v= h==='get-a-machine' ? 'business' : (h==='help' ? 'customer' : 'choose');
-    ['choose','business','customer'].forEach(function(n){ document.getElementById('view-'+n).hidden = (n!==v); });
-    if(h==='get-a-machine'||h==='help'||h==='choose'){ document.getElementById('help-panel').scrollIntoView({block:'start'}); }
+    var h=location.hash.replace('#',''); var v=views[h]||'choose';
+    ['choose','business','customer','refund','payment','suggest'].forEach(function(n){ document.getElementById('view-'+n).hidden=(n!==v); });
+    if(h && views[h]){ document.getElementById('help-panel').scrollIntoView({block:'start'}); }
   }
   window.addEventListener('hashchange', route); route();
-  form.addEventListener('submit', function(e){
-    e.preventDefault();
-    if(!form.checkValidity()){ status.textContent='Please fill in the required fields (name, business, email, location type, people on site, city).'; form.reportValidity(); return; }
-    var live = !/claude|artifact|localhost/.test(location.hostname);
-    if(!live){ status.textContent='Preview only: the form will send to your email once the site is live.'; return; }
-    if(document.getElementById('botcheck').checked){ return; }
-    var data=Object.fromEntries(new FormData(form));
-    if(!data.ok_to_text){ data.ok_to_text='No'; }
-    data.replyto=data.email;
-    status.textContent='Sending…';
-    fetch('https://api.web3forms.com/submit', {method:'POST', headers:{'Content-Type':'application/json','Accept':'application/json'}, body:JSON.stringify(data)})
-      .then(function(r){ return r.json(); })
-      .then(function(j){ if(!j.success) throw new Error(); wrap.innerHTML='<div class="done"><strong>Thanks, we got it.</strong>We\u2019ll reach out within one business day to set up a quick visit.</div>'; })
-      .catch(function(){ status.textContent='That didn’t send. Please try again, or email texaseaglevending@gmail.com.'; });
-  });
-  var cf=document.getElementById('cust'), cs=document.getElementById('cust-status'), cw=document.getElementById('cust-wrap'), rf=document.getElementById('refund-fields');
-  function syncType(){
-    var t=(cf.querySelector('input[name=request_type]:checked')||{}).value;
-    var refund = t==='Refund or charge problem';
-    rf.hidden=!refund;
-    ['c-issue','c-date','c-amount','c-last4'].forEach(function(id){ document.getElementById(id).required=refund; });
-    document.getElementById('c-msg').placeholder = refund ? 'What happened? Include anything that helps us find your purchase.' : (t==='Product request' ? 'What products would you like to see in the machine?' : 'What would you like us to know?');
-  }
-  cf.addEventListener('change', function(e){ if(e.target.name==='request_type') syncType(); }); syncType();
-  cf.addEventListener('submit', function(e){
-    e.preventDefault();
-    if(!cf.checkValidity()){ cs.textContent='Please fill in the highlighted fields.'; cf.reportValidity(); return; }
-    var live = !/claude|artifact|localhost/.test(location.hostname);
-    if(!live){ cs.textContent='Preview only: this will send to your email once the site is live.'; return; }
-    if(document.getElementById('c-botcheck').checked){ return; }
-    var d=Object.fromEntries(new FormData(cf));
-    if(d.request_type!=='Refund or charge problem'){ delete d.issue; delete d.purchase_date; delete d.purchase_time; delete d.amount_charged; delete d.card_last4; }
-    d.subject='Customer request: '+d.request_type+' – Texas Eagle Vending website';
-    d.replyto=d.email;
-    cs.textContent='Sending…';
-    fetch('https://api.web3forms.com/submit', {method:'POST', headers:{'Content-Type':'application/json','Accept':'application/json'}, body:JSON.stringify(d)})
-      .then(function(r){ return r.json(); })
-      .then(function(j){ if(!j.success) throw new Error(); cw.innerHTML='<div class="done"><strong>Thanks, we got your request.</strong>We\u2019ll review it and reply by email within 1\u20132 business days.</div>'; })
-      .catch(function(){ cs.textContent='That didn\u2019t send. Please try again, or email texaseaglevending@gmail.com.'; });
+  var live=!/claude|artifact|localhost/.test(location.hostname);
+  document.querySelectorAll('form.tevform').forEach(function(f){
+    var st=f.querySelector('.fstatus'), wrap=f.parentNode, cat=f.getAttribute('data-category');
+    f.addEventListener('submit', function(e){
+      e.preventDefault();
+      if(!f.checkValidity()){ st.textContent='Please fill in the highlighted fields.'; f.reportValidity(); return; }
+      if(!live){ st.textContent='Preview only: this will send to your email once the site is live.'; return; }
+      if(f.querySelector('.botcheck').checked){ return; }
+      var d=Object.fromEntries(new FormData(f)); delete d.botcheck;
+      if('ok_to_text' in d || cat==='New Machine Request'){ if(!d.ok_to_text) d.ok_to_text='No'; }
+      var who=d.business||d.name||'Website visitor';
+      d.subject='TEV Website | '+cat+' | '+who;
+      if(d.email) d.replyto=d.email;
+      st.textContent='Sending\u2026';
+      fetch('https://api.web3forms.com/submit',{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(d)})
+        .then(function(r){return r.json();})
+        .then(function(j){ if(!j.success) throw new Error(); wrap.innerHTML='<div class="done"><strong>Thanks, we got it.</strong>'+(thanks[cat]||'We\u2019ll review your request and reply by email within 1\u20132 business days.')+'</div>'; })
+        .catch(function(){ st.textContent='That didn\u2019t send. Please try again, or email texaseaglevending@gmail.com.'; });
+    });
   });
 })();
 </script>
