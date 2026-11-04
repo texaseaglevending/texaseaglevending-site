@@ -139,9 +139,11 @@ html{scroll-behavior:smooth}
         <h2>Request a free machine</h2>
         <p class="sub">Tell us about your location. We'll reply within one business day.</p>
         <div id="lead-wrap">
-          <form id="lead" name="lead" method="POST" data-netlify="true" netlify-honeypot="company_url" novalidate>
-            <input type="hidden" name="form-name" value="lead">
-            <p class="hp"><label>Leave this empty <input id="company_url" name="company_url" tabindex="-1" autocomplete="off"></label></p>
+          <form id="lead" name="lead" method="POST" novalidate>
+            <input type="hidden" name="access_key" value="d6e5b101-bb3a-49ef-8ebc-456072534087">
+            <input type="hidden" name="subject" value="New machine request – Texas Eagle Vending website">
+            <input type="hidden" name="from_name" value="Texas Eagle Vending website">
+            <p class="hp"><label>Leave this unchecked <input id="botcheck" name="botcheck" type="checkbox" tabindex="-1" autocomplete="off"></label></p>
             <div class="row2">
               <label for="f-name">Your name<input id="f-name" name="name" autocomplete="name" required></label>
               <label for="f-biz">Business name<input id="f-biz" name="business" autocomplete="organization" required></label>
@@ -166,6 +168,7 @@ html{scroll-behavior:smooth}
             </div>
             <label for="f-city">City or address<input id="f-city" name="location" autocomplete="address-level2" required></label>
             <label for="f-msg">Anything else? <span class="opt">(optional)</span><textarea id="f-msg" name="message" placeholder="Hours, where a machine could go, products your people want"></textarea></label>
+            <label for="f-text" style="display:flex;gap:10px;align-items:flex-start;font-weight:400;font-size:14px;color:var(--muted)"><input id="f-text" name="ok_to_text" type="checkbox" value="Yes" style="width:20px;min-height:20px;height:20px;margin-top:2px;flex:none">OK to text me about my request. Message and data rates may apply. Reply STOP to opt out.</label>
             <button class="btn" type="submit" style="width:100%">Request my free machine</button>
             <p class="form-note" id="form-status" role="status" aria-live="polite">No cost, no obligation.</p>
           </form>
@@ -273,12 +276,16 @@ html{scroll-behavior:smooth}
   form.addEventListener('submit', function(e){
     e.preventDefault();
     if(!form.checkValidity()){ status.textContent='Please fill in the required fields (name, business, email, location type, people on site, city).'; form.reportValidity(); return; }
-    var live = /\.netlify\.app$/.test(location.hostname) || /texaseaglevending/.test(location.hostname);
+    var live = !/claude|artifact|localhost/.test(location.hostname);
     if(!live){ status.textContent='Preview only: the form will send to your email once the site is live.'; return; }
-    var body=new URLSearchParams(new FormData(form)).toString();
+    if(document.getElementById('botcheck').checked){ return; }
+    var data=Object.fromEntries(new FormData(form));
+    if(!data.ok_to_text){ data.ok_to_text='No'; }
+    data.replyto=data.email;
     status.textContent='Sending…';
-    fetch('/', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:body})
-      .then(function(r){ if(!r.ok) throw new Error(); wrap.innerHTML='<div class="done"><strong>Thanks, we got it.</strong>We’ll reach out within one business day to set up a quick visit.</div>'; })
+    fetch('https://api.web3forms.com/submit', {method:'POST', headers:{'Content-Type':'application/json','Accept':'application/json'}, body:JSON.stringify(data)})
+      .then(function(r){ return r.json(); })
+      .then(function(j){ if(!j.success) throw new Error(); wrap.innerHTML='<div class="done"><strong>Thanks, we got it.</strong>We\u2019ll reach out within one business day to set up a quick visit.</div>'; })
       .catch(function(){ status.textContent='That didn’t send. Please try again, or email texaseaglevending@gmail.com.'; });
   });
 })();
