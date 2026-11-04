@@ -23,6 +23,7 @@
   color-scheme: light;
 }
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.55}
 .wrap{max-width:1120px;margin:0 auto;padding-left:max(20px, env(safe-area-inset-left, 0px));padding-right:max(20px, env(safe-area-inset-right, 0px))}
 h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0}
@@ -106,6 +107,29 @@ footer a{color:#fff}
   section.block{padding-block:56px}
   .top .btn{display:none}
 }
+
+/* chooser */
+.choices{display:grid;gap:14px}
+.choice{display:flex;align-items:center;gap:16px;padding:18px;border:2px solid var(--line);border-radius:12px;text-decoration:none;color:var(--ink);background:var(--paper);min-height:44px}
+.choice:hover{border-color:var(--navy);background:#F7F9FC}
+.choice-ico{flex:none;width:52px;height:52px;border-radius:12px;background:var(--navy);color:var(--gold);display:flex;align-items:center;justify-content:center}
+.choice-alt .choice-ico{background:var(--gold);color:var(--navy-deep)}
+.choice-text{display:grid;gap:3px;min-width:0}
+.choice-who{font-family:var(--display);font-weight:800;font-size:12px;letter-spacing:1.6px;text-transform:uppercase;color:var(--gold-ink)}
+.choice strong{font-family:var(--display);font-size:19px;line-height:1.2;color:var(--navy)}
+.choice-sub{font-size:14px;color:var(--muted);line-height:1.4}
+.choice-arrow{margin-left:auto;font-size:30px;line-height:1;color:var(--navy)}
+.back{display:inline-flex;align-items:center;min-height:44px;font-weight:600;text-decoration:none;margin:-10px 0 4px}
+#help-panel h2{margin-top:4px}
+.seg{border:0;padding:0;margin:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.seg legend{font-size:14px;font-weight:600;margin-bottom:6px;padding:0}
+.seg-opt{position:relative;display:block}
+.seg-opt input{position:absolute;opacity:0;width:1px;height:1px}
+.seg-opt span{display:flex;align-items:center;justify-content:center;text-align:center;min-height:52px;padding:6px 8px;border:1.5px solid var(--line);border-radius:8px;font-size:14px;font-weight:600;color:var(--navy);cursor:pointer;line-height:1.25}
+.seg-opt input:checked + span{background:var(--navy);border-color:var(--navy);color:#fff}
+.seg-opt input:focus-visible + span{outline:3px solid var(--gold);outline-offset:2px}
+.subgroup{display:grid;gap:14px;padding:14px;border-radius:10px;background:var(--mist)}
+@media (max-width:860px){ .hero .card{order:-1} .seg{grid-template-columns:minmax(0,1fr)} }
 @media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
 html{scroll-behavior:smooth}
 </style>
@@ -119,7 +143,7 @@ html{scroll-behavior:smooth}
       <svg aria-hidden="true" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#F2A900" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.9 6.3 6.9.7-5.2 4.6 1.5 6.8L12 17l-6.1 3.4 1.5-6.8L2.2 9l6.9-.7z"/></svg>
       Texas Eagle Vending
     </a>
-    <a class="btn" href="#get-a-machine">Get a machine</a>
+    <nav style="display:flex;align-items:center;gap:18px"><a href="#help" style="color:#fff;font-weight:600;text-decoration:none;min-height:44px;display:inline-flex;align-items:center">Customer help</a><a class="btn" href="#get-a-machine">Get a machine</a></nav>
   </div>
 </header>
 
@@ -138,9 +162,29 @@ html{scroll-behavior:smooth}
         <div class="stat"><b>6,700+</b><span>purchases served at our current locations</span></div>
       </div>
 
-      <div class="card" id="get-a-machine">
-        <h2>Request a free machine</h2>
-        <p class="sub">Tell us about your location. We'll reply within one business day.</p>
+      <div class="card" id="help-panel">
+        <div id="view-choose">
+          <h2>How can we help?</h2>
+          <p class="sub">Choose the option that fits you.</p>
+          <div class="choices">
+            <a class="choice" href="#get-a-machine">
+              <span class="choice-ico" aria-hidden="true"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6M9 10h.01M15 10h.01"/></svg></span>
+              <span class="choice-text"><span class="choice-who">For businesses</span><strong>I want a machine at my location</strong><span class="choice-sub">Free install, stocking and service for your business, job site or building.</span></span>
+              <span class="choice-arrow" aria-hidden="true">›</span>
+            </a>
+            <a class="choice choice-alt" href="#help">
+              <span class="choice-ico" aria-hidden="true"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h12v20l-3-2-3 2-3-2-3 2z"/><path d="M9 7h6M9 11h6M9 15h3"/></svg></span>
+              <span class="choice-text"><span class="choice-who">For customers</span><strong>I bought something from one of your machines</strong><span class="choice-sub">Refund or charge problem, feedback, or a product request.</span></span>
+              <span class="choice-arrow" aria-hidden="true">›</span>
+            </a>
+          </div>
+        </div>
+
+        <div id="view-business" hidden>
+          <a class="back" href="#choose">‹ Back</a>
+          <div class="eyebrow">For businesses</div>
+          <h2>Request a free machine</h2>
+          <p class="sub">Tell us about your location. We'll reply within one business day.</p>
         <div id="lead-wrap">
           <form id="lead" name="lead" method="POST" novalidate>
             <input type="hidden" name="access_key" value="d6e5b101-bb3a-49ef-8ebc-456072534087">
@@ -175,6 +219,60 @@ html{scroll-behavior:smooth}
             <button class="btn" type="submit" style="width:100%">Request my free machine</button>
             <p class="form-note" id="form-status" role="status" aria-live="polite">No cost, no obligation.</p>
           </form>
+        </div>
+        </div>
+
+        <div id="view-customer" hidden>
+          <a class="back" href="#choose">‹ Back</a>
+          <div class="eyebrow">For customers</div>
+          <h2>Customer help</h2>
+          <p class="sub">Tell us what happened and we'll make it right. We review every request within 1–2 business days.</p>
+          <div id="cust-wrap">
+            <form id="cust" name="customer" method="POST" novalidate>
+              <input type="hidden" name="access_key" value="d6e5b101-bb3a-49ef-8ebc-456072534087">
+              <input type="hidden" name="from_name" value="Texas Eagle Vending website">
+              <p class="hp"><label>Leave this unchecked <input id="c-botcheck" name="botcheck" type="checkbox" tabindex="-1" autocomplete="off"></label></p>
+              <fieldset class="seg">
+                <legend>What do you need?</legend>
+                <label class="seg-opt"><input type="radio" name="request_type" value="Refund or charge problem" required checked><span>Refund or charge problem</span></label>
+                <label class="seg-opt"><input type="radio" name="request_type" value="Feedback"><span>Feedback</span></label>
+                <label class="seg-opt"><input type="radio" name="request_type" value="Product request"><span>Product request</span></label>
+              </fieldset>
+              <div class="row2">
+                <label for="c-name">Your name<input id="c-name" name="name" autocomplete="name" required></label>
+                <label for="c-email">Email<input id="c-email" name="email" type="email" autocomplete="email" required></label>
+              </div>
+              <div class="row2">
+                <label for="c-machine">Which machine?
+                  <select id="c-machine" name="machine" required>
+                    <option value="">Choose one</option>
+                    <option>Austin – Snacks</option><option>Austin – Essentials / OTC</option><option>San Antonio – Snacks</option><option>San Antonio – Essentials / OTC</option><option>Not sure</option>
+                  </select>
+                </label>
+                <label for="c-phone">Phone <span class="opt">(optional)</span><input id="c-phone" name="phone" type="tel" autocomplete="tel"></label>
+              </div>
+              <div id="refund-fields" class="subgroup">
+                <label for="c-issue">What happened?
+                  <select id="c-issue" name="issue">
+                    <option value="">Choose one</option>
+                    <option>Charged for something I didn't take</option><option>Charged twice</option><option>Charged the wrong price</option><option>Item was damaged or expired</option><option>Door didn't open / couldn't get my item</option><option>Other</option>
+                  </select>
+                </label>
+                <div class="row2">
+                  <label for="c-date">Date of purchase<input id="c-date" name="purchase_date" type="date"></label>
+                  <label for="c-time">About what time? <span class="opt">(optional)</span><input id="c-time" name="purchase_time" type="time"></label>
+                </div>
+                <div class="row2">
+                  <label for="c-amount">Amount charged<input id="c-amount" name="amount_charged" inputmode="decimal" placeholder="$0.00"></label>
+                  <label for="c-last4">Last 4 digits of card <span class="opt">(to find your charge)</span><input id="c-last4" name="card_last4" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" placeholder="1234"></label>
+                </div>
+                <p class="form-note">Refunds go back to the card you used. Never send your full card number.</p>
+              </div>
+              <label for="c-msg" id="c-msg-label">Tell us more<textarea id="c-msg" name="message" required placeholder="What happened, or what you'd like us to know"></textarea></label>
+              <button class="btn" type="submit" style="width:100%">Send to Texas Eagle Vending</button>
+              <p class="form-note" id="cust-status" role="status" aria-live="polite">We'll reply by email.</p>
+            </form>
+          </div>
         </div>
       </div>
     </div>
@@ -276,6 +374,13 @@ html{scroll-behavior:smooth}
 <script>
 (function(){
   var form=document.getElementById('lead'), status=document.getElementById('form-status'), wrap=document.getElementById('lead-wrap');
+  function route(){
+    var h=location.hash.replace('#','');
+    var v= h==='get-a-machine' ? 'business' : (h==='help' ? 'customer' : 'choose');
+    ['choose','business','customer'].forEach(function(n){ document.getElementById('view-'+n).hidden = (n!==v); });
+    if(h==='get-a-machine'||h==='help'||h==='choose'){ document.getElementById('help-panel').scrollIntoView({block:'start'}); }
+  }
+  window.addEventListener('hashchange', route); route();
   form.addEventListener('submit', function(e){
     e.preventDefault();
     if(!form.checkValidity()){ status.textContent='Please fill in the required fields (name, business, email, location type, people on site, city).'; form.reportValidity(); return; }
@@ -290,6 +395,31 @@ html{scroll-behavior:smooth}
       .then(function(r){ return r.json(); })
       .then(function(j){ if(!j.success) throw new Error(); wrap.innerHTML='<div class="done"><strong>Thanks, we got it.</strong>We\u2019ll reach out within one business day to set up a quick visit.</div>'; })
       .catch(function(){ status.textContent='That didn’t send. Please try again, or email texaseaglevending@gmail.com.'; });
+  });
+  var cf=document.getElementById('cust'), cs=document.getElementById('cust-status'), cw=document.getElementById('cust-wrap'), rf=document.getElementById('refund-fields');
+  function syncType(){
+    var t=(cf.querySelector('input[name=request_type]:checked')||{}).value;
+    var refund = t==='Refund or charge problem';
+    rf.hidden=!refund;
+    ['c-issue','c-date','c-amount','c-last4'].forEach(function(id){ document.getElementById(id).required=refund; });
+    document.getElementById('c-msg').placeholder = refund ? 'What happened? Include anything that helps us find your purchase.' : (t==='Product request' ? 'What products would you like to see in the machine?' : 'What would you like us to know?');
+  }
+  cf.addEventListener('change', function(e){ if(e.target.name==='request_type') syncType(); }); syncType();
+  cf.addEventListener('submit', function(e){
+    e.preventDefault();
+    if(!cf.checkValidity()){ cs.textContent='Please fill in the highlighted fields.'; cf.reportValidity(); return; }
+    var live = !/claude|artifact|localhost/.test(location.hostname);
+    if(!live){ cs.textContent='Preview only: this will send to your email once the site is live.'; return; }
+    if(document.getElementById('c-botcheck').checked){ return; }
+    var d=Object.fromEntries(new FormData(cf));
+    if(d.request_type!=='Refund or charge problem'){ delete d.issue; delete d.purchase_date; delete d.purchase_time; delete d.amount_charged; delete d.card_last4; }
+    d.subject='Customer request: '+d.request_type+' – Texas Eagle Vending website';
+    d.replyto=d.email;
+    cs.textContent='Sending…';
+    fetch('https://api.web3forms.com/submit', {method:'POST', headers:{'Content-Type':'application/json','Accept':'application/json'}, body:JSON.stringify(d)})
+      .then(function(r){ return r.json(); })
+      .then(function(j){ if(!j.success) throw new Error(); cw.innerHTML='<div class="done"><strong>Thanks, we got your request.</strong>We\u2019ll review it and reply by email within 1\u20132 business days.</div>'; })
+      .catch(function(){ cs.textContent='That didn\u2019t send. Please try again, or email texaseaglevending@gmail.com.'; });
   });
 })();
 </script>
