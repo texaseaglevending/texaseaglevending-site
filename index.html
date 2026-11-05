@@ -35,9 +35,10 @@ a{color:var(--navy)}
 
 /* header */
 .top{background:var(--navy);color:#fff}
-.top .wrap{display:flex;align-items:center;justify-content:space-between;gap:16px;padding-block:16px}
+.top .wrap{display:flex;align-items:center;justify-content:space-between;gap:16px;padding-block:12px}
 .brand{display:flex;align-items:center;gap:10px;color:#fff;text-decoration:none;font-family:var(--display);font-weight:800;letter-spacing:2px;text-transform:uppercase;font-size:15px}
-.brand svg{flex:none}
+.brand img{display:block;height:72px;width:auto}
+@media (max-width:560px){.brand img{height:54px}}
 .top .btn{min-height:42px;font-size:15px}
 
 /* hero */
@@ -140,8 +141,7 @@ html{scroll-behavior:smooth}
 <header class="top">
   <div class="wrap">
     <a class="brand" href="#top" aria-label="Texas Eagle Vending home">
-      <svg aria-hidden="true" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#F2A900" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.9 6.3 6.9.7-5.2 4.6 1.5 6.8L12 17l-6.1 3.4 1.5-6.8L2.2 9l6.9-.7z"/></svg>
-      Texas Eagle Vending
+      <img src="logo-white.png" alt="Texas Eagle Vending LLC" width="134" height="72">
     </a>
     <nav style="display:flex;align-items:center;gap:18px"><a href="#help" style="color:#fff;font-weight:600;text-decoration:none;min-height:44px;display:inline-flex;align-items:center">Customer help</a><a class="btn" href="#get-a-machine">Get a machine</a></nav>
   </div>
