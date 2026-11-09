@@ -8,6 +8,7 @@
 <meta property="og:url" content="https://texaseaglevending.com/">
 <meta property="og:type" content="website">
 <meta property="og:title" content="Texas Eagle Vending — Smart Vending">
+<meta property="og:image" content="https://texaseaglevending.com/img/og.jpg">
 <meta property="og:description" content="AI-powered vending machines installed, stocked and serviced at your location for free. Austin, San Antonio and surrounding areas.">
 <title>Texas Eagle Vending | Smart Vending in Austin &amp; San Antonio</title>
 <meta name="description" content="Free AI-powered smart vending for businesses in Austin, San Antonio and surrounding areas. We install, stock and service the machine at no cost to you.">
@@ -149,6 +150,11 @@ footer a{color:#fff}
 .ta-list li.ta-add{color:var(--gold-ink);font-weight:600;border-top:1px solid var(--line);border-radius:0 0 6px 6px}
 input:disabled{background:var(--mist);color:var(--muted)}
 .done .closing{margin:12px 0 0;font-style:italic;color:var(--muted)}
+.photos{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:20px;margin-top:32px}
+.photos figure{margin:0}
+.photos img{display:block;width:100%;height:auto;aspect-ratio:3/4;object-fit:cover;border-radius:12px;background:var(--mist);box-shadow:0 8px 22px rgba(5,14,30,.14)}
+.photos figcaption{margin-top:10px;font-weight:600;font-size:15px;color:var(--navy)}
+@media (max-width:860px){.photos{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.photos figcaption{font-size:14px}}
 @media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
 html{scroll-behavior:smooth}
 </style>
@@ -434,7 +440,21 @@ html{scroll-behavior:smooth}
     </div>
   </section>
 
-  <section class="block">
+  <section class="block gallery">
+    <div class="wrap">
+      <div class="eyebrow">On location now</div>
+      <h2>Real machines, fully stocked</h2>
+      <p class="intro">Our smart coolers in service today: snacks, drinks and everyday essentials, open 24/7.</p>
+      <div class="photos">
+        <figure><img src="img/machines-pair.jpg" alt="Two Texas Eagle Vending smart coolers side by side, one with over-the-counter essentials and one with snacks and energy drinks" width="900" height="1200" loading="lazy" decoding="async"><figcaption>Snacks and essentials, side by side</figcaption></figure>
+        <figure><img src="img/machines-in-place.jpg" alt="Two smart vending machines installed against a wall in a venue" width="900" height="1200" loading="lazy" decoding="async"><figcaption>About the footprint of a fridge</figcaption></figure>
+        <figure><img src="img/snacks-machine.jpg" alt="Smart cooler stocked with protein bars, energy drinks, chips and candy" width="900" height="1200" loading="lazy" decoding="async"><figcaption>Energy drinks, protein, chips and candy</figcaption></figure>
+        <figure><img src="img/otc-machine.jpg" alt="Smart cooler stocked with over-the-counter pain relief, allergy and stomach medicine" width="900" height="1200" loading="lazy" decoding="async"><figcaption>Over-the-counter essentials</figcaption></figure>
+      </div>
+    </div>
+  </section>
+
+  <section class="block alt">
     <div class="wrap">
       <div class="eyebrow">Why host a machine</div>
       <h2>An on-site perk that costs you nothing</h2>
@@ -459,7 +479,7 @@ html{scroll-behavior:smooth}
     </div>
   </section>
 
-  <section class="block alt">
+  <section class="block">
     <div class="wrap">
       <div class="eyebrow">How it works</div>
       <h2>Up and running in three steps</h2>
@@ -471,7 +491,7 @@ html{scroll-behavior:smooth}
     </div>
   </section>
 
-  <section class="block">
+  <section class="block alt">
     <div class="wrap two">
       <div>
         <div class="eyebrow">What we stock</div>
@@ -495,7 +515,7 @@ html{scroll-behavior:smooth}
     </div>
   </section>
 
-  <section class="block alt">
+  <section class="block">
     <div class="wrap">
       <div class="eyebrow">Questions</div>
       <h2>Common questions</h2>
