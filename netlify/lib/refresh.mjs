@@ -76,9 +76,18 @@ export async function updateAgg(store, salesByDay) {
   await store.setJSON("agg", agg);
 }
 
-export async function refresh(context, { salesDays = 2 } = {}) {
+export async function refresh(context, { salesDays = 2, catchUp = true } = {}) {
   const store = storeFor(context);
   const started = new Date().toISOString();
+  if (catchUp) {
+    // Re-pull every day since the last good refresh (plus one overlap day), up to 62 days, so history never has gaps.
+    const last = await store.get("status", { type: "json" }).catch(() => null);
+    const lastDay = last && last.ok && last.lastSalesDay;
+    if (lastDay) {
+      const gap = Math.round((Date.parse(localDate() + "T12:00:00Z") - Date.parse(lastDay + "T12:00:00Z")) / 864e5) + 1;
+      salesDays = Math.min(62, Math.max(salesDays, gap));
+    } else salesDays = Math.max(salesDays, 7);
+  }
   try {
     const token = await getToken();
     const [catalog, inventory] = await Promise.all([getAll("/open/api/v1/products", token), getAll("/open/api/v1/inventory/products", token)]);
@@ -100,7 +109,7 @@ export async function refresh(context, { salesDays = 2 } = {}) {
     for (const [id, p] of Object.entries(products)) { p.tax = taxType(p.name); if (needsCheck(p.name)) p.taxCheck = true; }
     const snapshot = { pulledAt: new Date().toISOString(), machines: MACHINES, products, stock, capacity };
     await store.setJSON("snapshot", snapshot);
-    const status = { ok: true, startedAt: started, finishedAt: new Date().toISOString(), productCount: Object.keys(products).length, salesPulled: sales };
+    const status = { ok: true, startedAt: started, finishedAt: new Date().toISOString(), productCount: Object.keys(products).length, salesPulled: sales, lastSalesDay: today };
     await store.setJSON("status", status);
     return status;
   } catch (e) {
