@@ -1,3 +1,4 @@
+import { isLive, deny } from "../lib/session.mjs";
 // Updates product cost in haha for products Brad has approved.
 // POST only. Default is a dry run that shows current vs new cost; nothing changes unless dryRun is false.
 const BASE = "https://thor-openapi.hahavending.com";
@@ -14,7 +15,8 @@ async function getToken() {
   return j.data.token;
 }
 
-export default async (req) => {
+export default async (req, context) => {
+  if (isLive(context)) return deny(404, "not available on the live site");
   try {
     if (req.method !== "POST") return Response.json({ ok: false, error: "POST only" }, { status: 405 });
     const body = await req.json();

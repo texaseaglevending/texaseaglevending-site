@@ -1,3 +1,4 @@
+import { isLive, deny } from "../lib/session.mjs";
 // Read-only: sales for one machine and date range from the haha Open Platform.
 // GET /api/haha-sales?sticker=B101219&start=2026-11-12&end=2026-11-12
 const BASE = "https://thor-openapi.hahavending.com";
@@ -13,7 +14,8 @@ async function getToken() {
   return j.data.token;
 }
 
-export default async (req) => {
+export default async (req, context) => {
+  if (isLive(context)) return deny(404, "not available on the live site");
   try {
     const q = new URL(req.url).searchParams;
     const token = await getToken();

@@ -1,3 +1,4 @@
+import { isLive, deny } from "../lib/session.mjs";
 // Sets haha stock to counted numbers for products Brad has approved.
 // POST only. Default is a dry run that shows the plan; nothing changes unless dryRun is false.
 // Keys come from Netlify environment variables and are never returned or logged.
@@ -34,7 +35,8 @@ async function getAll(path, token) {
   return out;
 }
 
-export default async (req) => {
+export default async (req, context) => {
+  if (isLive(context)) return deny(404, "not available on the live site");
   try {
     if (req.method !== "POST") return Response.json({ ok: false, error: "POST only" }, { status: 405 });
     if (!process.env.HAHA_APPKEY || !process.env.HAHA_APPSECRET) return Response.json({ ok: false, error: "haha keys are not set in Netlify" }, { status: 500 });

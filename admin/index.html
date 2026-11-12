@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>TEV Admin</title>
+<style>
+:root{--bg:#f5f6f8;--card:#fff;--ink:#16181d;--muted:#5d6472;--line:#dde1e8;--navy:#12284c}
+@media (prefers-color-scheme:dark){:root{--bg:#121417;--card:#1b1e23;--ink:#eceef2;--muted:#a3aab6;--line:#2e333b;--navy:#86a6d6}}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+.wrap{max-width:720px;margin:0 auto;padding:32px 16px;display:flex;flex-direction:column;gap:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:20px}
+h1{margin:0;font-size:24px}.muted{color:var(--muted)}
+a.btn,button{display:inline-block;background:var(--navy);color:#fff;border:0;border-radius:8px;padding:10px 16px;font:inherit;text-decoration:none;cursor:pointer}
+dl{display:grid;grid-template-columns:max-content 1fr;gap:6px 16px;margin:0}dt{color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Texas Eagle Vending Admin</h1>
+  <div class="card" id="out"><p class="muted">Checking sign-in…</p></div>
+</div>
+<script>
+(async function(){
+  const out = document.getElementById('out');
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  let s = {};
+  try { s = await fetch('/api/auth/session', {cache:'no-store'}).then(r => r.json()); } catch (e) {}
+  if (!s.signedIn) { out.innerHTML = '<p>Sign in with the TEV Google account to view the dashboard.</p><a class="btn" href="/api/auth/login">Sign in with Google</a>'; return; }
+  let st = null;
+  try { st = (await fetch('/api/dash-data?part=status', {cache:'no-store'}).then(r => r.json())).data; } catch (e) {}
+  const when = st && st.finishedAt ? new Date(st.finishedAt).toLocaleString('en-US', {timeZone:'America/Chicago', dateStyle:'medium', timeStyle:'short'}) : 'not yet';
+  out.innerHTML = '<dl><dt>Signed in as</dt><dd>' + esc(s.email) + '</dd><dt>Last data refresh</dt><dd>' + esc(when) + (st && !st.ok ? ' (failed)' : '') + '</dd><dt>Products</dt><dd>' + esc(st && st.productCount || '—') + '</dd></dl><p class="muted">The dashboard screens are coming next. This page is view only.</p><form method="post" action="/api/auth/logout"><button>Sign out</button></form>';
+})();
+</script>
+</body>
+</html>

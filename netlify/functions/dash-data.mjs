@@ -1,9 +1,10 @@
-// Read-only dashboard data feed. Test site only until the Google sign-in gate (step 2) is in place.
+// Read-only dashboard data feed. Requires the admin Google sign-in.
 // GET /api/dash-data?part=status|snapshot|sales&day=YYYY-MM-DD
 import { storeFor } from "../lib/refresh.mjs";
+import { adminFrom, deny } from "../lib/session.mjs";
 
 export default async (req, context) => {
-  if (context.deploy && context.deploy.context === "production") return Response.json({ ok: false, error: "not available yet" }, { status: 404 });
+  if (!adminFrom(req)) return deny(401, "sign in required");
   const q = new URL(req.url).searchParams;
   const store = storeFor(context);
   const part = q.get("part") || "status";

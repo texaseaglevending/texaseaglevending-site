@@ -1,3 +1,4 @@
+import { isLive, deny } from "../lib/session.mjs";
 // Read-only: product catalogue (cost and default price) and each machine's shelf layout from the haha Open Platform.
 const BASE = "https://thor-openapi.hahavending.com";
 const MARKETS = ["B101219", "B111755", "B101231", "B111750"];
@@ -30,7 +31,8 @@ async function getAll(path, token) {
   return out;
 }
 
-export default async () => {
+export default async (req, context) => {
+  if (isLive(context)) return deny(404, "not available on the live site");
   try {
     const token = await getToken();
     const items = await getAll("/open/api/v1/products", token);

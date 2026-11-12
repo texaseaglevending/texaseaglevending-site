@@ -1,3 +1,4 @@
+import { isLive, deny } from "../lib/session.mjs";
 // Read-only: pulls per-product stock for every TEV machine from the haha Open Platform.
 // Keys come from Netlify environment variables and are never returned or logged.
 const BASE = "https://thor-openapi.hahavending.com";
@@ -32,7 +33,8 @@ async function getAll(path, token) {
   return out;
 }
 
-export default async () => {
+export default async (req, context) => {
+  if (isLive(context)) return deny(404, "not available on the live site");
   try {
     if (!process.env.HAHA_APPKEY || !process.env.HAHA_APPSECRET) {
       return Response.json({ ok: false, error: "haha keys are not set in Netlify" }, { status: 500 });
