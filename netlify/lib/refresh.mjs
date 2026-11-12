@@ -1,6 +1,7 @@
 // Pulls haha data and saves dashboard snapshots in Netlify Blobs. Read-only toward haha.
 import { getStore } from "@netlify/blobs";
 import { getToken, getAll, getOne, MACHINES } from "./haha.mjs";
+import { taxType, needsCheck } from "./tax.mjs";
 
 export const TZ = "America/Chicago";
 export const storeFor = (context) => getStore({ name: "dashboard-" + ((context && context.deploy && context.deploy.context) || "dev"), consistency: "strong" });
@@ -60,13 +61,15 @@ export async function updateAgg(store, salesByDay) {
         const lp = (agg.lastPrice[it.p] ||= {});
         if (!lp[s.m] || lp[s.m].at < s.at) lp[s.m] = { price: Number(it.price), at: s.at };
         m.u += q;
-        const p = ((d.p[it.p] ||= {})[s.m] ||= { u: 0, r: 0 });
+        const p = ((d.p[it.p] ||= {})[s.m] ||= { u: 0, r: 0, f: 0 });
+        const share = Number(it.paid || 0) / listed;
         p.u += q;
-        p.r += net * (Number(it.paid || 0) / listed);
+        p.r += net * share;
+        p.f = (p.f || 0) + 0.05 * share; // this item's part of haha's $0.05 per-order fee
       }
     }
     for (const m of Object.values(d.m)) m.r = Math.round(m.r * 100) / 100;
-    for (const byM of Object.values(d.p)) for (const v of Object.values(byM)) v.r = Math.round(v.r * 100) / 100;
+    for (const byM of Object.values(d.p)) for (const v of Object.values(byM)) { v.r = Math.round(v.r * 100) / 100; v.f = Math.round(v.f * 1000) / 1000; }
     agg.days[day] = d;
   }
   agg.updatedAt = new Date().toISOString();
@@ -94,6 +97,7 @@ export async function refresh(context, { salesDays = 2 } = {}) {
     }
     const today = localDate();
     const sales = await pullSales(store, token, addDays(today, 1 - salesDays), today);
+    for (const [id, p] of Object.entries(products)) { p.tax = taxType(p.name); if (needsCheck(p.name)) p.taxCheck = true; }
     const snapshot = { pulledAt: new Date().toISOString(), machines: MACHINES, products, stock, capacity };
     await store.setJSON("snapshot", snapshot);
     const status = { ok: true, startedAt: started, finishedAt: new Date().toISOString(), productCount: Object.keys(products).length, salesPulled: sales };

@@ -60,7 +60,7 @@ td.l,th.l{text-align:left}
   const app = document.getElementById('app');
   const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   const TZ = 'America/Chicago';
-  const money = n => '$' + (n || 0).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+  const money = n => (n < 0 ? '−$' : '$') + Math.abs(n || 0).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
   const int = n => Math.round(n || 0).toLocaleString('en-US');
 
   let s = {};
@@ -114,6 +114,28 @@ td.l,th.l{text-align:left}
     return t;
   }
   const fees = t => t.r * 0.0595 + t.o * 0.05;
+  // ---- Profit: sale price minus sales tax (by product tax type), haha card fee, and haha product cost ----
+  const RATE = 0.0825;
+  const taxShare = pid => { const t = (snap.products[pid] || {}).tax || 'full'; const k = t === 'exempt' ? 0 : t === 'food' ? 0.5 : 1; return RATE * k / (1 + RATE * k); };
+  const costOf = pid => Number((snap.products[pid] || {}).cost || 0);
+  const PENDING = /think turkey jerky/i; // cost waiting on the SA count
+  function profitParts(pid, v) { const tax = v.r * taxShare(pid), fee = v.r * 0.0595 + (v.f ?? 0), cost = v.u * costOf(pid); return { u: v.u, r: v.r, tax, fee, cost, profit: v.r - tax - fee - cost }; }
+  function profitRange(a, b, ids) {
+    const byP = {}; const t = { u: 0, r: 0, tax: 0, fee: 0, cost: 0, profit: 0 };
+    for (let d = a; d <= b; d = add(d, 1)) {
+      const day = agg.days[d]; if (!day) continue;
+      for (const [pid, byM] of Object.entries(day.p)) for (const [mid, v] of Object.entries(byM)) {
+        if (ids && !ids.includes(mid)) continue;
+        const x = profitParts(pid, v), y = (byP[pid] ||= { u: 0, r: 0, tax: 0, fee: 0, cost: 0, profit: 0 });
+        for (const k of Object.keys(t)) { y[k] += x[k]; t[k] += x[k]; }
+      }
+    }
+    return { t, byP };
+  }
+  // haha monthly service fee ($40 per machine), from haha's billing history; $160 a month after that
+  const SVC = { '2025-09': 0, '2025-10': 320, '2025-11': 40, '2025-12': 160, '2026-03': 158.5 };
+  const svcFor = mo => SVC[mo] ?? 160;
+  const pct = (a, b) => b ? (a / b * 100).toFixed(0) + '%' : '—';
   const deltaHtml = (cur, prev, vs) => {
     if (!prev) return '<span class="delta muted">—' + (vs ? ' no sales ' + esc(vs) : '') + '</span>';
     const pct = (cur - prev) / prev * 100;
@@ -169,6 +191,7 @@ td.l,th.l{text-align:left}
     const rows = months.map(mo => { let rr = 0, sa = 0; for (const [d, day] of Object.entries(agg.days)) { if (!d.startsWith(mo) || d > today) continue; for (const [mid, v] of Object.entries(day.m)) { if (LOC.RR.includes(mid)) rr += v.r; else sa += v.r; } } return { mo, rr, sa, all: rr + sa }; })
       .filter((r, i, a) => r.all > 0 || i > a.findIndex(x => x.all > 0));
     if (!rows.length) return '';
+    for (const r of rows) { const [y, m] = r.mo.split('-').map(Number); const end = new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10); r.pf = profitRange(r.mo + '-01', end > today ? today : end).t.profit; }
     const W = 720, H = 240, L = 52, R = 70, B = 28, T = 12;
     const max = Math.max(...rows.map(r => r.all));
     const step = Math.ceil(max / 4 / 250) * 250 || 250, top = step * 4;
@@ -198,9 +221,12 @@ td.l,th.l{text-align:left}
         <tr><td>Round Rock</td>${rows.map(r => `<td>${money0(r.rr)}</td>`).join('')}</tr>
         <tr><td>San Antonio</td>${rows.map(r => `<td>${money0(r.sa)}</td>`).join('')}</tr>
         <tr class="total"><td>All</td>${rows.map(r => `<td>${money0(r.all)}</td>`).join('')}</tr>
-      </tbody></table></div></section>`;
+        <tr><td>Profit before haha monthly fee</td>${rows.map(r => `<td>${money0(r.pf)}</td>`).join('')}</tr>
+        <tr><td>haha monthly fee</td>${rows.map(r => `<td>−${money0(svcFor(r.mo))}</td>`).join('')}</tr>
+        <tr class="total"><td>Est. profit</td>${rows.map(r => `<td class="${r.pf - svcFor(r.mo) < 0 ? 'warn' : ''}">${money0(r.pf - svcFor(r.mo))}</td>`).join('')}</tr>
+      </tbody></table></div><p class="small muted" style="margin:8px 0 0">Est. profit uses today's haha product costs for every month.</p></section>`;
   }
-  const money0 = n => '$' + Math.round(n || 0).toLocaleString('en-US');
+  const money0 = n => (n < 0 ? '−$' : '$') + Math.abs(Math.round(n || 0)).toLocaleString('en-US');
 
   // ---------- Home ----------
   function home() {
@@ -220,6 +246,12 @@ td.l,th.l{text-align:left}
     const botList = rows.filter(x => active.has(x.pid)).sort((a, b) => a[key] - b[key] || a.u - b.u).slice(0, 10);
     const sellTable = list => '<table><thead><tr><th>Product</th><th>Units</th><th>Sales</th></tr></thead><tbody>' + (list.length ? list.map(x => `<tr><td>${pLink(x.pid)}</td><td>${int(x.u)}</td><td>${money(x.r)}</td></tr>`).join('') : '<tr><td colspan="3" class="muted">No sales in this period</td></tr>') + '</tbody></table>';
     const lt = (latest || []).filter(x => !ids || ids.includes(x.m)).slice(0, 15);
+    const pr = profitRange(P.a, P.b, ids), prp = profitRange(P.pa, P.pb, ids);
+    const profRows = Object.entries(pr.byP).map(([pid, v]) => ({ pid, ...v })).sort((a, b) => b.profit - a.profit);
+    const profShown = state.allProfit ? profRows : profRows.slice(0, 15);
+    const profTable = `<div class="scroll"><table><thead><tr><th>Product</th><th>Units</th><th>Sales</th><th>Sales tax</th><th>Card fees</th><th>Product cost</th><th>Profit</th><th>Margin</th></tr></thead><tbody>
+      <tr class="total"><td>All products</td><td>${int(pr.t.u)}</td><td>${money(pr.t.r)}</td><td>${money(pr.t.tax)}</td><td>${money(pr.t.fee)}</td><td>${money(pr.t.cost)}</td><td>${money(pr.t.profit)}</td><td>${pct(pr.t.profit, pr.t.r - pr.t.tax)}</td></tr>
+      ${profShown.map(x => `<tr><td>${pLink(x.pid)}${PENDING.test(pName(x.pid)) ? ' <span class="tag">cost pending</span>' : ''}${(snap.products[x.pid] || {}).taxCheck ? ' <span class="tag">tax label to check</span>' : ''}</td><td>${int(x.u)}</td><td>${money(x.r)}</td><td>${money(x.tax)}</td><td>${money(x.fee)}</td><td>${money(x.cost)}</td><td class="${x.profit < 0 ? 'warn' : ''}">${money(x.profit)}</td><td>${pct(x.profit, x.r - x.tax)}</td></tr>`).join('')}</tbody></table></div>`;
     const txHref = `#/tx?from=${P.a}&to=${P.b}${state.loc ? '&loc=' + state.loc : ''}`;
 
     app.innerHTML = header('') + `
@@ -233,8 +265,9 @@ td.l,th.l{text-align:left}
         <a class="card kpi" href="${txHref}" style="color:inherit;text-decoration:none"><div class="lbl">Orders</div><div class="num">${int(cur.o)}</div>${deltaHtml(cur.o, prev.o, P.vs)}</a>
         <div class="card kpi"><div class="lbl">Items sold</div><div class="num">${int(cur.u)}</div>${deltaHtml(cur.u, prev.u, P.vs)}</div>
         <div class="card kpi"><div class="lbl">Avg order</div><div class="num">${cur.o ? money(cur.r / cur.o) : '—'}</div><span class="delta muted">sales ÷ orders</span></div>
-        <div class="card kpi"><div class="lbl">Est. sales tax</div><div class="num">${money(cur.r - cur.r / 1.0825)}</div><span class="delta muted">8.25% backed out, before exemptions</span></div>
+        <div class="card kpi"><div class="lbl">Sales tax</div><div class="num">${money(pr.t.tax)}</div><span class="delta muted">8.25%, by product tax type</span></div>
         <div class="card kpi"><div class="lbl">Est. card fees</div><div class="num">${money(fees(cur))}</div><span class="delta muted">5.95% + $0.05 per order</span></div>
+        <div class="card kpi"><div class="lbl">Est. profit</div><div class="num">${money(pr.t.profit)}</div>${deltaHtml(pr.t.profit, prp.t.profit, P.vs)}<div class="delta muted">${pct(pr.t.profit, pr.t.r - pr.t.tax)} of sales after tax · before haha's monthly fee</div></div>
       </section>
       <section class="card">
         <div class="head"><h2>By machine</h2><a class="small" href="#/total">Business total by day ›</a></div>
@@ -244,6 +277,11 @@ td.l,th.l{text-align:left}
         <div class="head"><h2>Daily sales, last 30 days</h2>${legend}</div>
         ${barChart(lastDays(30), ids)}
       </section>
+      <section class="card">
+        <div class="head"><h2>Profit by product</h2><button class="link small" id="allp">${state.allProfit ? 'Show top 15' : 'Show all ' + profRows.length}</button></div>
+        ${profTable}
+        <p class="small muted" style="margin:8px 0 0">Profit = what customers paid, minus sales tax for each product's tax type, minus haha's card fee (5.95% + $0.05 per order), minus the product cost in haha. Before haha's $40 per machine monthly fee.</p>
+      </section>
       <section class="grid2">
         <div class="card"><div class="head"><h2>Top 10 sellers</h2><div class="seg"><button data-s="units" aria-pressed="${state.sellers === 'units'}">Units</button><button data-s="sales" aria-pressed="${state.sellers === 'sales'}">Dollars</button></div></div>${sellTable(topList)}</div>
         <div class="card"><div class="head"><h2>Bottom 10 (in machines now)</h2></div>${sellTable(botList)}</div>
@@ -252,10 +290,11 @@ td.l,th.l{text-align:left}
         <div class="head"><h2>Latest transactions</h2><a class="small" href="${txHref}">All transactions ›</a></div>
         ${txTable(lt)}
       </section>
-      <p class="muted small">View only. Sales are what customers paid, tax included, minus refunds. Profit by product comes in a later step.</p>`;
+      <p class="muted small">View only. Sales are what customers paid, tax included, minus refunds.</p>`;
     app.querySelectorAll('[data-p]').forEach(b => b.onclick = () => { state.period = b.dataset.p; save(); home(); });
     app.querySelectorAll('[data-loc]').forEach(b => b.onclick = () => { state.loc = b.dataset.loc; save(); home(); });
     app.querySelectorAll('[data-s]').forEach(b => b.onclick = () => { state.sellers = b.dataset.s; save(); home(); });
+    document.getElementById('allp').onclick = () => { state.allProfit = !state.allProfit; save(); home(); };
   }
 
   // ---------- Business total by day ----------
@@ -321,6 +360,7 @@ td.l,th.l{text-align:left}
     const days = lastDays(90);
     const byMachine = M.map(m => { let u = 0, r = 0; for (const d of days) { const v = ((agg.days[d] || {}).p || {})[id]; if (v && v[m.id]) { u += v[m.id].u; r += v[m.id].r; } } return { m, u, r, stock: ((snap.stock || {})[m.id] || {})[id] || 0, cap: ((snap.capacity || {})[m.id] || {})[id] || 0, lp: ((agg.lastPrice || {})[id] || {})[m.id] }; });
     const u90 = byMachine.reduce((a, x) => a + x.u, 0), r90 = byMachine.reduce((a, x) => a + x.r, 0);
+    const pp = profitRange(add(today, -89), today).byP[id] || { u: 0, r: 0, tax: 0, fee: 0, cost: 0, profit: 0 };
     const weeks = []; for (let w = 12; w >= 0; w--) { const end = add(today, -7 * w), start = add(end, -6); let u = 0; for (let d = start; d <= end; d = add(d, 1)) { const v = ((agg.days[d] || {}).p || {})[id]; if (v) for (const x of Object.values(v)) u += x.u; } weeks.push({ start, end, u }); }
     const maxU = Math.max(1, ...weeks.map(w => w.u));
     const W = 720, H = 150, L = 30, B = 22, T = 8, bw = (W - L - 8) / weeks.length;
@@ -335,6 +375,8 @@ td.l,th.l{text-align:left}
       <section class="kpis">
         <div class="card kpi"><div class="lbl">Sold, 90 days</div><div class="num">${int(u90)}</div><span class="delta muted">${(u90 / 90 * 7).toFixed(1)} a week</span></div>
         <div class="card kpi"><div class="lbl">Sales, 90 days</div><div class="num">${money(r90)}</div><span class="delta muted">tax included</span></div>
+        <div class="card kpi"><div class="lbl">Est. profit, 90 days</div><div class="num ${pp.profit < 0 ? 'warn' : ''}">${money(pp.profit)}</div><span class="delta muted">${pp.u ? money(pp.profit / pp.u) + ' per item · ' : ''}${pct(pp.profit, pp.r - pp.tax)} margin${PENDING.test(pName(id)) ? ' · cost pending' : ''}</span></div>
+        <div class="card kpi"><div class="lbl">Tax type</div><div class="num" style="font-size:20px">${({exempt:'Exempt', food:'Food, 50% taxed', full:'Fully taxed'})[p.tax || 'full']}</div><span class="delta muted">${p.taxCheck ? 'label still to check' : 'Texas vending rule'}</span></div>
         <div class="card kpi"><div class="lbl">In machines now</div><div class="num">${int(byMachine.reduce((a, x) => a + x.stock, 0))}</div><span class="delta muted">storage not shown yet</span></div>
       </section>
       <section class="card"><div class="head"><h2>Sold per week, last 13 weeks</h2></div><svg viewBox="0 0 ${W} ${H}" width="100%" style="max-height:220px" role="img" aria-label="Units sold per week">${g}</svg></section>
