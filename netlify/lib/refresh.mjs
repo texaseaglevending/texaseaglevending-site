@@ -10,7 +10,7 @@ const addDays = (ymd, n) => { const d = new Date(ymd + "T12:00:00Z"); d.setUTCDa
 
 const slimSale = (s) => ({
   id: s.saleId, m: s.marketId, at: s.saleDtm || s.createdDtm, status: s.status, refund: !!s.isRefund,
-  gross: s.saleGrossTotal, net: s.saleTotal,
+  gross: s.grossTotal ?? s.saleGrossTotal ?? null, net: s.total ?? s.saleTotal ?? null,
   items: (s.saleItems || []).map((it) => ({ p: it.productId, n: it.productName, q: it.quantity, price: it.price, paid: it.itemFinalPrice, refund: !!it.isRefund })),
 });
 
