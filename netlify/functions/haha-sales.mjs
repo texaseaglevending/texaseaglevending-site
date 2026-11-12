@@ -31,6 +31,7 @@ export default async (req) => {
       cursor = j.data.next_cursor;
       if (!cursor) break;
     }
+    if (q.get("raw")) return Response.json({ ok: true, raw: out.slice(0, 3) }, { headers: { "Cache-Control": "no-store" } });
     const sales = out.map((s) => ({
       saleId: s.saleId, marketId: s.marketId, created: s.createdDtm, paid: s.saleDtm, status: s.status, total: s.saleGrossTotal, isRefund: s.isRefund,
       items: (s.saleItems || []).map((it) => ({ productId: it.productId, name: it.productName, qty: it.quantity, price: it.price })),
