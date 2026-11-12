@@ -176,7 +176,7 @@ td.l,th.l{text-align:left}
     const y = v => T + (H - T - B) * (1 - v / top);
     const curMo = today.slice(0, 7);
     const series = [['all', 'All', 'var(--ink)', 2.5], ['rr', 'Round Rock', 'var(--bar)', 2], ['sa', 'San Antonio', 'var(--bar2)', 2]];
-    const moLbl = mo => new Date(mo + '-15T12:00:00Z').toLocaleDateString('en-US', {month:'short', timeZone:'UTC'}) + (mo.endsWith('-01') || mo === rows[0].mo ? " '" + mo.slice(2, 4) : '');
+    const moLbl = mo => new Date(mo + '-15T12:00:00Z').toLocaleDateString('en-US', {month:'short', timeZone:'UTC'}) + " '" + mo.slice(2, 4);
     let g = '';
     for (let i = 0; i <= 4; i++) { const v = step * i; g += `<line x1="${L}" x2="${W - R + 8}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${L - 6}" y="${y(v) + 4}" text-anchor="end">$${v.toLocaleString('en-US')}</text>`; }
     rows.forEach((r, i) => { g += `<text x="${x(i)}" y="${H - 8}" text-anchor="middle">${moLbl(r.mo)}</text>`; });
