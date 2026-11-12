@@ -73,8 +73,8 @@ td.l,th.l{text-align:left}
   }
 
   const get = q => fetch('/api/dash-data?part=' + q, {cache:'no-store'}).then(r => r.json()).then(j => { if (!j.ok) throw new Error(j.error || 'load failed'); return j.data; });
-  let snap, agg, status, latest;
-  const loadAll = async () => { [snap, agg, status, latest] = await Promise.all([get('snapshot'), get('agg'), get('status'), get('latest&n=20')]); };
+  let snap, agg, status, latest, forms = [];
+  const loadAll = async () => { [snap, agg, status, latest, forms] = await Promise.all([get('snapshot'), get('agg'), get('status'), get('latest&n=20'), get('forms&n=200').catch(() => [])]); forms = forms || []; };
   try { await loadAll(); }
   catch (e) { app.innerHTML = '<div class="center card"><p>Could not load data. Try reloading.</p></div>'; return; }
   // Pull fresh data from haha when the page opens and the data is more than 10 minutes old (read-only).
@@ -166,7 +166,7 @@ td.l,th.l{text-align:left}
       <div><h1><a href="#/" style="color:inherit">Texas Eagle Vending</a></h1><div class="muted small">${updating ? 'Updating from haha…' : 'Data as of ' + esc(whenOf())}${status && !status.ok ? ' <span class="warn">— last refresh failed</span>' : ''} · ${updating ? '' : '<button class="link small" id="refreshBtn">Refresh now</button> · '}updates when opened if older than 10 min, plus a nightly backup</div></div>
       <div style="display:flex;gap:12px;align-items:center"><span class="muted small">${esc(s.email)}</span><form method="post" action="/api/auth/logout" style="margin:0"><button class="link">Sign out</button></form></div>
     </header>
-    <div class="status muted">${online ? online.map(o => `<span title="${o.online === false ? 'Not connected to haha right now' : o.online ? 'Connected to haha' : 'Status unknown'}"><span class="dot" style="background:${o.online === false ? 'var(--bad)' : o.online ? 'var(--good)' : 'var(--line)'}"></span>${mLink(o.id)} ${o.online === false ? '<b class="warn">offline</b>' : o.online ? 'online' : '?'}</span>`).join('') : 'Checking machines…'} <a href="#/restocks">Restocks ›</a></div>
+    <div class="status muted">${online ? online.map(o => `<span title="${o.online === false ? 'Not connected to haha right now' : o.online ? 'Connected to haha' : 'Status unknown'}"><span class="dot" style="background:${o.online === false ? 'var(--bad)' : o.online ? 'var(--good)' : 'var(--line)'}"></span>${mLink(o.id)} ${o.online === false ? '<b class="warn">offline</b>' : o.online ? 'online' : '?'}</span>`).join('') : 'Checking machines…'} <a href="#/restocks">Restocks ›</a> <a href="#/messages">Messages${forms.filter(isNew).length ? ' (' + forms.filter(isNew).length + ' new)' : ''} ›</a></div>
     ${crumbs ? `<div class="crumbs"><a href="#/">Home</a> › ${crumbs}</div>` : ''}`;
 
   // Stacked bar chart of daily sales (RR dark, SA light) for a list of days
@@ -243,6 +243,38 @@ td.l,th.l{text-align:left}
   }
   const money0 = n => (n < 0 ? '−$' : '$') + Math.abs(Math.round(n || 0)).toLocaleString('en-US');
 
+
+  // ---------- Customer messages (website forms) ----------
+  const CAT_SHORT = { 'Refund Request': 'Problem with a purchase', 'Card Payment Issue': 'Card payment issue', 'New Machine Request': 'New machine request', 'Product Suggestion': 'Product suggestion' };
+  const FIELD_LABELS = { name: 'Name', business: 'Business', email: 'Email', phone: 'Phone', contact_by: 'Contact by', ok_to_text: 'OK to text', location: 'Location', location_type: 'Location type', people_on_site: 'People on site', machine: 'Machine', issue: 'Issue', amount_charged: 'Amount charged', purchase_date: 'Purchase date', purchase_time: 'Purchase time', product_category: 'Category', product: 'Product', on_our_list: 'On our list', message: 'Message' };
+  const gmailLink = f => 'https://mail.google.com/mail/u/?authuser=texaseaglevending@gmail.com#search/' + encodeURIComponent('subject:"' + (f.subject || '') + '"');
+  const isNew = f => Date.now() - Date.parse(f.at) < 48 * 3600e3;
+  const formCard = f => {
+    const x = f.fields || {};
+    const who = x.business || x.name || (f.category === 'Product Suggestion' ? (x.product || 'Suggestion') : 'Website visitor');
+    const details = Object.keys(FIELD_LABELS).filter(k => x[k] && k !== 'message').map(k => `<span class="muted">${esc(FIELD_LABELS[k])}:</span> ${esc(x[k])}`).join(' · ');
+    return `<div style="padding:12px 0;border-bottom:1px solid var(--line)">
+      <div class="head" style="margin:0 0 4px"><div><b>${esc(CAT_SHORT[f.category] || f.category)}</b> · ${esc(who)} ${isNew(f) ? '<span class="tag warn">new</span>' : ''}</div><span class="small muted">${esc(fmtTime(f.at))} · <a href="${gmailLink(f)}" target="_blank" rel="noopener">Open in Gmail</a></span></div>
+      ${x.message ? `<div style="white-space:pre-wrap;margin:4px 0">${esc(x.message)}</div>` : ''}
+      <div class="small">${details}</div></div>`;
+  };
+  function messagesPanel() {
+    const recent = forms.filter(f => Date.now() - Date.parse(f.at) < 30 * 864e5);
+    const nNew = forms.filter(isNew).length;
+    return `<section class="card"><div class="head"><h2>Customer messages ${nNew ? `<span class="tag warn">${nNew} new</span>` : ''}</h2><a class="small" href="#/messages">All messages ›</a></div>
+      ${recent.length ? recent.slice(0, 5).map(formCard).join('') : '<p class="muted small" style="margin:0">No website form messages in the last 30 days. New ones show here the moment they are sent.</p>'}</section>`;
+  }
+  function messages(q) {
+    const cat = q.get('cat') || '';
+    const list = forms.filter(f => !cat || f.category === cat);
+    app.innerHTML = header('Customer messages') + `
+      <div class="head" style="margin:0"><h2 style="margin:0;font-size:18px">Customer messages</h2>
+        <div class="seg">${['', ...Object.keys(CAT_SHORT)].map(c => `<button data-c="${esc(c)}" aria-pressed="${cat === c}">${esc(c ? CAT_SHORT[c] : 'All')}</button>`).join('')}</div></div>
+      <section class="card">${list.length ? list.map(formCard).join('') : '<p class="muted">No messages.</p>'}</section>
+      <p class="small muted">Copies of the website forms. The original email is in Gmail under Texas Eagle Admin. Messages are shown as plain text and never acted on automatically.</p>`;
+    app.querySelectorAll('[data-c]').forEach(b => b.onclick = () => { location.hash = '#/messages' + (b.dataset.c ? '?cat=' + encodeURIComponent(b.dataset.c) : ''); });
+  }
+
   // ---------- Home ----------
   function home() {
     const P = periods[state.period]();
@@ -274,6 +306,7 @@ td.l,th.l{text-align:left}
         <div class="tabs" role="group" aria-label="Period">${Object.keys(names).map(k => `<button data-p="${k}" aria-pressed="${state.period === k}">${names[k]}</button>`).join('')}</div>
         <div class="seg" role="group" aria-label="Location">${locBtn('', 'All')}${locBtn('RR', 'Round Rock')}${locBtn('SA', 'San Antonio')}</div>
       </div>
+      ${messagesPanel()}
       <div class="muted small" style="margin-top:-6px">${esc(names[state.period])}: ${esc(label(P.a, P.b))}</div>
       <section class="kpis">
         <a class="card kpi" href="${txHref}" style="color:inherit;text-decoration:none"><div class="lbl">Sales</div><div class="num">${money(cur.r)}</div>${deltaHtml(cur.r, prev.r, P.vs)}</a>
@@ -466,7 +499,7 @@ td.l,th.l{text-align:left}
     const q = new URLSearchParams(qs || '');
     const y = window.scrollY;
     if (!(opts && opts.keep)) window.scrollTo(0, 0);
-    const view = path === '/total' ? total : path === '/tx' ? () => tx(q) : path === '/restocks' ? () => restocks(q) : path.startsWith('/product/') ? () => product(decodeURIComponent(path.slice(9))) : path.startsWith('/machine/') ? () => machine(path.slice(9)) : home;
+    const view = path === '/total' ? total : path === '/tx' ? () => tx(q) : path === '/restocks' ? () => restocks(q) : path === '/messages' ? () => messages(q) : path.startsWith('/product/') ? () => product(decodeURIComponent(path.slice(9))) : path.startsWith('/machine/') ? () => machine(path.slice(9)) : home;
     const done = view();
     const rb = document.getElementById('refreshBtn'); if (rb) rb.onclick = () => refreshNow(true);
     if (opts && opts.keep) { if (done && done.then) done.then(() => window.scrollTo(0, y)); else window.scrollTo(0, y); }

@@ -3,6 +3,7 @@
 import { storeFor } from "../lib/refresh.mjs";
 import { adminFrom, deny } from "../lib/session.mjs";
 import { getToken, getAll, getOne, MACHINES } from "../lib/haha.mjs";
+import { formsStore } from "../lib/forms.mjs";
 
 export default async (req, context) => {
   if (!adminFrom(req)) return deny(401, "sign in required");
@@ -65,6 +66,11 @@ export default async (req, context) => {
       }
       return { at: r.createdAt, m: r.marketId, type: r.operationType, label: r.operationTypeLabel, by: r.operatorUserName || null, logId: r.restockOpLogId || null, changes };
     }));
+  }
+  else if (part === "forms") {
+    const fs = formsStore(context);
+    const keys = (await fs.list({ prefix: "sub/" })).blobs.map((b) => b.key).sort().reverse().slice(0, Math.min(500, Number(q.get("n") || 200)));
+    data = (await Promise.all(keys.map((k) => fs.get(k, { type: "json" })))).filter(Boolean);
   }
   else if (part === "days") data = (await store.list({ prefix: "sales/" })).blobs.map((b) => b.key.slice(6)).sort();
   else return Response.json({ ok: false, error: "unknown part" }, { status: 400 });
