@@ -1,11 +1,12 @@
-// Test site only: run a refresh by hand, or backfill sales history one month at a time.
-// Refuses on the live site. GET /api/dash-refresh-now            -> full refresh (last 2 days of sales)
+// Run a refresh by hand, or backfill sales history one month at a time. Read-only toward haha.
+// On the live site it only runs for the signed-in admin; on the test site it is behind Netlify's login. GET /api/dash-refresh-now            -> full refresh (last 2 days of sales)
 //                            GET /api/dash-refresh-now?month=2026-10 -> sales for that month only
 import { refresh, storeFor, pullSales } from "../lib/refresh.mjs";
 import { getToken } from "../lib/haha.mjs";
+import { adminFrom } from "../lib/session.mjs";
 
 export default async (req, context) => {
-  if (context.deploy && context.deploy.context === "production") return Response.json({ ok: false, error: "not available on the live site" }, { status: 404 });
+  if (context.deploy && context.deploy.context === "production" && !adminFrom(req)) return Response.json({ ok: false, error: "sign in required" }, { status: 401 });
   const month = new URL(req.url).searchParams.get("month");
   if (month) {
     if (!/^\d{4}-\d{2}$/.test(month)) return Response.json({ ok: false, error: "month must be YYYY-MM" }, { status: 400 });
