@@ -25,6 +25,24 @@ export default async (req, context) => {
     }
     data = data.slice(0, n);
   }
+  else if (part === "range") {
+    // Sales between two dates (max 93 days), optionally for one machine and/or one product.
+    const from = q.get("from"), to = q.get("to"), m = q.get("m"), p = q.get("p");
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(from || "") || !/^\d{4}-\d{2}-\d{2}$/.test(to || "") || from > to) return deny(400, "from and to must be YYYY-MM-DD");
+    const span = (Date.parse(to) - Date.parse(from)) / 864e5;
+    if (span > 93) return deny(400, "93 days at most");
+    const days = [];
+    for (let t = Date.parse(from + "T12:00:00Z"); t <= Date.parse(to + "T12:00:00Z"); t += 864e5) days.push(new Date(t).toISOString().slice(0, 10));
+    const blobs = await Promise.all(days.map((d) => store.get("sales/" + d, { type: "json" })));
+    data = [];
+    for (const b of blobs) for (const s of (b && b.sales) || []) {
+      if (!(s.paid > 0)) continue;
+      if (m && s.m !== m) continue;
+      if (p && !(s.items || []).some((i) => i.p === p)) continue;
+      data.push(s);
+    }
+    data.sort((a, b) => (a.at < b.at ? 1 : -1));
+  }
   else if (part === "days") data = (await store.list({ prefix: "sales/" })).blobs.map((b) => b.key.slice(6)).sort();
   else return Response.json({ ok: false, error: "unknown part" }, { status: 400 });
   return Response.json({ ok: true, part, data }, { headers: { "Cache-Control": "no-store" } });

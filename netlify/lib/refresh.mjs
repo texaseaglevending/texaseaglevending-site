@@ -45,6 +45,7 @@ export function saleNet(s) {
 // Each refresh or backfill rewrites only the days it pulled.
 export async function updateAgg(store, salesByDay) {
   const agg = (await store.get("agg", { type: "json" })) || { days: {} };
+  agg.lastPrice ||= {};
   for (const [day, sales] of Object.entries(salesByDay)) {
     const d = { m: {}, p: {} };
     for (const s of sales) {
@@ -56,6 +57,8 @@ export async function updateAgg(store, salesByDay) {
       const listed = paidItems.reduce((a, i) => a + Number(i.paid || 0), 0) || 1;
       for (const it of paidItems) {
         const q = Number(it.q || 0);
+        const lp = (agg.lastPrice[it.p] ||= {});
+        if (!lp[s.m] || lp[s.m].at < s.at) lp[s.m] = { price: Number(it.price), at: s.at };
         m.u += q;
         const p = ((d.p[it.p] ||= {})[s.m] ||= { u: 0, r: 0 });
         p.u += q;

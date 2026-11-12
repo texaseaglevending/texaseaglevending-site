@@ -41,7 +41,15 @@ svg text{fill:var(--muted);font-size:11px}
 @media (prefers-color-scheme:dark){.btn{color:#111316}}
 .link{background:none;border:0;color:var(--accent);font:inherit;cursor:pointer;padding:0}
 .center{max-width:420px;margin:12vh auto;text-align:center}
-.tx td:nth-child(3),.tx th:nth-child(3){white-space:normal;text-align:left}.tx td:nth-child(3){color:var(--muted)}
+.tx td:nth-child(2),.tx th:nth-child(2),.tx td:nth-child(3),.tx th:nth-child(3){white-space:normal;text-align:left}.tx td:nth-child(3){color:var(--muted)}
+a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
+.crumbs{font-size:13px}.crumbs a{margin-right:6px}
+.filters{display:flex;gap:8px;flex-wrap:wrap;align-items:end}
+.filters label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted)}
+.filters input,.filters select{font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink)}
+td.l,th.l{text-align:left}
+.tag{display:inline-block;font-size:11px;padding:1px 6px;border-radius:999px;background:var(--soft);color:var(--muted)}
+.warn{color:var(--bad)}
 </style>
 </head>
 <body>
@@ -52,7 +60,6 @@ svg text{fill:var(--muted);font-size:11px}
   const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   const TZ = 'America/Chicago';
   const money = n => '$' + (n || 0).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
-  const money0 = n => '$' + Math.round(n || 0).toLocaleString('en-US');
   const int = n => Math.round(n || 0).toLocaleString('en-US');
 
   let s = {};
@@ -62,17 +69,19 @@ svg text{fill:var(--muted);font-size:11px}
     return;
   }
 
-  const get = part => fetch('/api/dash-data?part=' + part, {cache:'no-store'}).then(r => r.json()).then(j => j.data);
+  const get = q => fetch('/api/dash-data?part=' + q, {cache:'no-store'}).then(r => r.json()).then(j => { if (!j.ok) throw new Error(j.error || 'load failed'); return j.data; });
   let snap, agg, status, latest;
   try { [snap, agg, status, latest] = await Promise.all([get('snapshot'), get('agg'), get('status'), get('latest&n=20')]); }
   catch (e) { app.innerHTML = '<div class="center card"><p>Could not load data. Try reloading.</p></div>'; return; }
   if (!snap || !agg) { app.innerHTML = '<div class="center card"><p>No data yet. The first refresh has not run.</p></div>'; return; }
 
   const M = snap.machines;
+  const LOC = { RR: ['B101219', 'B111755'], SA: ['B101231', 'B111750'] };
   const mName = id => (M.find(m => m.id === id) || {}).name || id;
   const pName = id => { const p = snap.products[id]; return p ? (p.alias || p.name) : id; };
+  const pLink = (id, fallback) => `<a href="#/product/${encodeURIComponent(id)}">${esc(snap.products[id] ? pName(id) : (fallback || id))}</a>`;
+  const mLink = id => `<a href="#/machine/${id}">${esc(mName(id))}</a>`;
 
-  // Dates in Central time, as YYYY-MM-DD strings
   const ymd = d => new Intl.DateTimeFormat('en-CA', {timeZone:TZ, year:'numeric', month:'2-digit', day:'2-digit'}).format(d);
   const add = (day, n) => { const d = new Date(day + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
   const today = ymd(new Date());
@@ -80,7 +89,9 @@ svg text{fill:var(--muted);font-size:11px}
   const monthStart = day => day.slice(0, 8) + '01';
   const monthEnd = day => { const [y, m] = day.split('-').map(Number); return new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10); };
   const addMonths = (day, n) => { const [y, m, d] = day.split('-').map(Number); const t = new Date(Date.UTC(y, m - 1 + n, 1)); const last = new Date(Date.UTC(t.getUTCFullYear(), t.getUTCMonth() + 1, 0)).getUTCDate(); return new Date(Date.UTC(t.getUTCFullYear(), t.getUTCMonth(), Math.min(d, last))).toISOString().slice(0, 10); };
-  const label = (a, b) => { const f = x => new Date(x + 'T12:00:00Z').toLocaleDateString('en-US', {month:'short', day:'numeric', timeZone:'UTC'}); return a === b ? f(a) : f(a) + ' – ' + f(b); };
+  const fmtDay = (x, o) => new Date(x + 'T12:00:00Z').toLocaleDateString('en-US', Object.assign({month:'short', day:'numeric', timeZone:'UTC'}, o || {}));
+  const label = (a, b) => a === b ? fmtDay(a) : fmtDay(a) + ' – ' + fmtDay(b);
+  const fmtTime = t => new Date(t).toLocaleString('en-US', {timeZone:TZ, month:'numeric', day:'numeric', hour:'numeric', minute:'2-digit'});
 
   const periods = {
     today:     () => ({ a: today, b: today, pa: add(today, -7), pb: add(today, -7), vs: 'same day last week' }),
@@ -91,131 +102,241 @@ svg text{fill:var(--muted);font-size:11px}
   };
   const names = {today:'Today', yesterday:'Yesterday', week:'This week', month:'This month', lastmonth:'Last month'};
 
-  function sum(a, b, loc) {
+  // Totals over a date range, limited to a list of machines (or all)
+  function sumRange(a, b, ids) {
     const t = { o: 0, r: 0, u: 0, byM: {}, byP: {} };
     for (let d = a; d <= b; d = add(d, 1)) {
       const day = agg.days[d]; if (!day) continue;
-      for (const [mid, v] of Object.entries(day.m)) {
-        if (loc && !mid.startsWith(loc)) continue;
-        const x = (t.byM[mid] ||= { o: 0, r: 0, u: 0 }); x.o += v.o; x.r += v.r; x.u += v.u;
-        t.o += v.o; t.r += v.r; t.u += v.u;
-      }
-      for (const [pid, byM] of Object.entries(day.p)) for (const [mid, v] of Object.entries(byM)) {
-        if (loc && !locOf(mid, loc)) continue;
-        const x = (t.byP[pid] ||= { u: 0, r: 0 }); x.u += v.u; x.r += v.r;
-      }
+      for (const [mid, v] of Object.entries(day.m)) { if (ids && !ids.includes(mid)) continue; const x = (t.byM[mid] ||= {o:0,r:0,u:0}); x.o += v.o; x.r += v.r; x.u += v.u; t.o += v.o; t.r += v.r; t.u += v.u; }
+      for (const [pid, byM] of Object.entries(day.p)) for (const [mid, v] of Object.entries(byM)) { if (ids && !ids.includes(mid)) continue; const x = (t.byP[pid] ||= {u:0,r:0}); x.u += v.u; x.r += v.r; }
     }
     return t;
   }
-  const LOC = { RR: ['B101219', 'B111755'], SA: ['B101231', 'B111750'] };
-  const locOf = (mid, loc) => LOC[loc].includes(mid);
-  // sum() filters machines by location list
-  const sumLoc = (a, b, loc) => {
-    if (!loc) return sum(a, b);
-    const t = { o: 0, r: 0, u: 0, byM: {}, byP: {} };
-    for (let d = a; d <= b; d = add(d, 1)) {
-      const day = agg.days[d]; if (!day) continue;
-      for (const [mid, v] of Object.entries(day.m)) { if (!LOC[loc].includes(mid)) continue; const x = (t.byM[mid] ||= {o:0,r:0,u:0}); x.o += v.o; x.r += v.r; x.u += v.u; t.o += v.o; t.r += v.r; t.u += v.u; }
-      for (const [pid, byM] of Object.entries(day.p)) for (const [mid, v] of Object.entries(byM)) { if (!LOC[loc].includes(mid)) continue; const x = (t.byP[pid] ||= {u:0,r:0}); x.u += v.u; x.r += v.r; }
-    }
-    return t;
-  };
   const fees = t => t.r * 0.0595 + t.o * 0.05;
   const deltaHtml = (cur, prev, vs) => {
-    if (!prev) return '<span class="delta muted">no sales ' + esc(vs) + '</span>';
+    if (!prev) return '<span class="delta muted">—' + (vs ? ' no sales ' + esc(vs) : '') + '</span>';
     const pct = (cur - prev) / prev * 100;
-    const cls = pct >= 0 ? 'up' : 'down';
-    return '<span class="delta ' + cls + '">' + (pct >= 0 ? '▲ ' : '▼ ') + Math.abs(pct).toFixed(0) + '%</span> <span class="delta muted">vs ' + esc(vs) + '</span>';
+    return '<span class="delta ' + (pct >= 0 ? 'up' : 'down') + '">' + (pct >= 0 ? '▲ ' : '▼ ') + Math.abs(pct).toFixed(0) + '%</span>' + (vs ? ' <span class="delta muted">vs ' + esc(vs) + '</span>' : '');
   };
 
-  let state = { period: 'month', loc: '', sellers: 'units' };
+  let state = { period: 'month', loc: '', sellers: 'units', totalDays: 30 };
   try { state = Object.assign(state, JSON.parse(localStorage.getItem('tev-dash') || '{}')); } catch (e) {}
   const save = () => { try { localStorage.setItem('tev-dash', JSON.stringify(state)); } catch (e) {} };
 
-  function chart30() {
-    const days = []; for (let i = 29; i >= 0; i--) days.push(add(today, -i));
-    const vals = days.map(d => { const day = agg.days[d]; let rr = 0, sa = 0; if (day) for (const [mid, v] of Object.entries(day.m)) { if (LOC.RR.includes(mid)) rr += v.r; else sa += v.r; } return { d, rr, sa }; });
-    const max = Math.max(50, ...vals.map(v => v.rr + v.sa));
-    const step = Math.ceil(max / 4 / 25) * 25, top = step * 4;
-    const W = 720, H = 200, L = 40, B = 24, T = 8, bw = (W - L - 8) / days.length;
+  const when = status && status.finishedAt ? new Date(status.finishedAt).toLocaleString('en-US', {timeZone:TZ, month:'short', day:'numeric', hour:'numeric', minute:'2-digit'}) : 'not yet';
+  const header = crumbs => `
+    <header>
+      <div><h1><a href="#/" style="color:inherit">Texas Eagle Vending</a></h1><div class="muted small">Data as of ${esc(when)}${status && !status.ok ? ' <span class="warn">— last refresh failed</span>' : ''} · updates 6 AM, 12 PM, 6 PM, 12 AM</div></div>
+      <div style="display:flex;gap:12px;align-items:center"><span class="muted small">${esc(s.email)}</span><form method="post" action="/api/auth/logout" style="margin:0"><button class="link">Sign out</button></form></div>
+    </header>
+    ${crumbs ? `<div class="crumbs"><a href="#/">Home</a> › ${crumbs}</div>` : ''}`;
+
+  // Stacked bar chart of daily sales (RR dark, SA light) for a list of days
+  function barChart(days, ids) {
+    const vals = days.map(d => { const day = agg.days[d]; let rr = 0, sa = 0; if (day) for (const [mid, v] of Object.entries(day.m)) { if (ids && !ids.includes(mid)) continue; if (LOC.RR.includes(mid)) rr += v.r; else sa += v.r; } return { d, rr, sa }; });
+    const max = Math.max(20, ...vals.map(v => v.rr + v.sa));
+    const step = Math.ceil(max / 4 / 25) * 25 || 5, top = step * 4;
+    const W = 720, H = 190, L = 40, B = 22, T = 8, bw = (W - L - 8) / days.length;
     const y = v => T + (H - T - B) * (1 - v / top);
+    const every = Math.max(1, Math.round(days.length / 6));
     let g = '';
     for (let i = 0; i <= 4; i++) { const v = step * i; g += `<line x1="${L}" x2="${W - 4}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${L - 6}" y="${y(v) + 4}" text-anchor="end">$${v}</text>`; }
     vals.forEach((v, i) => {
-      const x = L + i * bw + 2, w = bw - 4;
-      const tip = `<title>${label(v.d, v.d)}: ${money(v.rr + v.sa)} (RR ${money(v.rr)}, SA ${money(v.sa)})</title>`;
-      g += `<g>${tip}<rect x="${x}" y="${y(v.rr)}" width="${w}" height="${y(0) - y(v.rr)}" fill="var(--bar)" rx="2"/><rect x="${x}" y="${y(v.rr + v.sa)}" width="${w}" height="${y(v.rr) - y(v.rr + v.sa)}" fill="var(--bar2)" rx="2"/></g>`;
-      if (i % 5 === 4 || i === 29) g += `<text x="${x + w / 2}" y="${H - 6}" text-anchor="middle">${new Date(v.d + 'T12:00:00Z').toLocaleDateString('en-US', {month:'numeric', day:'numeric', timeZone:'UTC'})}</text>`;
+      const x = L + i * bw + Math.min(2, bw * 0.15), w = Math.max(1, bw - Math.min(4, bw * 0.3));
+      g += `<g><title>${fmtDay(v.d, {weekday:'short'})}: ${money(v.rr + v.sa)} (RR ${money(v.rr)}, SA ${money(v.sa)})</title><rect x="${x}" y="${y(v.rr)}" width="${w}" height="${y(0) - y(v.rr)}" fill="var(--bar)" rx="1.5"/><rect x="${x}" y="${y(v.rr + v.sa)}" width="${w}" height="${y(v.rr) - y(v.rr + v.sa)}" fill="var(--bar2)" rx="1.5"/></g>`;
+      if ((days.length - 1 - i) % every === 0) g += `<text x="${x + w / 2}" y="${H - 5}" text-anchor="middle">${new Date(v.d + 'T12:00:00Z').toLocaleDateString('en-US', {month:'numeric', day:'numeric', timeZone:'UTC'})}</text>`;
     });
-    return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Daily sales, last 30 days">${g}</svg>`;
+    return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-height:260px" role="img" aria-label="Daily sales">${g}</svg>`;
   }
+  const legend = '<span class="small muted"><span style="color:var(--bar)">■</span> Round Rock &nbsp; <span style="color:var(--bar2)">■</span> San Antonio</span>';
+  const lastDays = n => { const out = []; for (let i = n - 1; i >= 0; i--) out.push(add(today, -i)); return out; };
 
-  function render() {
+  const txTable = list => `<div class="scroll"><table class="tx"><thead><tr><th>Time</th><th>Machine</th><th>Items</th><th>Paid</th></tr></thead><tbody>${
+    list.length ? list.map(x => `<tr><td>${esc(fmtTime(x.at))}</td><td>${mLink(x.m)}</td><td>${(x.items || []).map(i => (i.q > 1 ? i.q + '× ' : '') + pLink(i.p, i.n) + ' <span class="muted">' + money(Number(i.price)) + '</span>' + (i.refund ? ' <span class="tag">refunded</span>' : '')).join(', ')}</td><td>${money(x.paid)}${x.refund ? ' <span class="tag">refunded</span>' : ''}</td></tr>`).join('') : '<tr><td colspan="4" class="muted">No sales match</td></tr>'
+  }</tbody></table></div>`;
+
+  // ---------- Home ----------
+  function home() {
     const P = periods[state.period]();
-    const cur = sumLoc(P.a, P.b, state.loc), prev = sumLoc(P.pa, P.pb, state.loc);
-    const when = status && status.finishedAt ? new Date(status.finishedAt).toLocaleString('en-US', {timeZone:TZ, month:'short', day:'numeric', hour:'numeric', minute:'2-digit'}) : 'not yet';
+    const ids = state.loc ? LOC[state.loc] : null;
+    const cur = sumRange(P.a, P.b, ids), prev = sumRange(P.pa, P.pb, ids);
     const locBtn = (v, t) => `<button data-loc="${v}" aria-pressed="${state.loc === v}">${t}</button>`;
+    const shown = M.filter(m => !ids || ids.includes(m.id)).map(m => m.id);
+    const row = (nm, c, p, cls) => `<tr class="${cls || ''}"><td>${nm}</td><td>${money(c.r)}</td><td>${int(c.o)}</td><td>${int(c.u)}</td><td>${c.o ? money(c.r / c.o) : '—'}</td><td>${p && p.r ? deltaHtml(c.r, p.r) : '<span class="muted">—</span>'}</td></tr>`;
+    let mt = row(`<a href="#/total">${state.loc ? (state.loc === 'RR' ? 'Round Rock total' : 'San Antonio total') : 'All 4 machines'}</a>`, cur, prev, 'total');
+    for (const id of shown) mt += row(mLink(id), cur.byM[id] || {o:0,r:0,u:0}, prev.byM[id]);
 
-    // machine table
-    const ids = M.filter(m => !state.loc || LOC[state.loc].includes(m.id)).map(m => m.id);
-    const row = (nm, c, p, cls) => `<tr class="${cls || ''}"><td>${esc(nm)}</td><td>${money(c.r)}</td><td>${int(c.o)}</td><td>${int(c.u)}</td><td>${c.o ? money(c.r / c.o) : '—'}</td><td>${p && p.r ? deltaHtml(c.r, p.r, '').replace(/ <span class="delta muted">vs <\/span>/, '') : '<span class="muted">—</span>'}</td></tr>`;
-    let mt = row(state.loc ? (state.loc === 'RR' ? 'Round Rock total' : 'San Antonio total') : 'All 4 machines', cur, prev, 'total');
-    for (const id of ids) mt += row(mName(id), cur.byM[id] || {o:0,r:0,u:0}, prev.byM[id], '');
-
-    // sellers
-    const active = new Set(); for (const id of ids) for (const [pid, q] of Object.entries((snap.stock || {})[id] || {})) if (q > 0) active.add(pid);
-    const all = new Set([...Object.keys(cur.byP), ...active]);
-    const rows = [...all].map(pid => ({ pid, u: (cur.byP[pid] || {}).u || 0, r: (cur.byP[pid] || {}).r || 0 }));
+    const active = new Set(); for (const id of shown) for (const [pid, q] of Object.entries((snap.stock || {})[id] || {})) if (q > 0) active.add(pid);
+    const rows = [...new Set([...Object.keys(cur.byP), ...active])].map(pid => ({ pid, u: (cur.byP[pid] || {}).u || 0, r: (cur.byP[pid] || {}).r || 0 }));
     const key = state.sellers === 'units' ? 'u' : 'r';
     const topList = rows.filter(x => x.u > 0).sort((a, b) => b[key] - a[key] || b.u - a.u).slice(0, 10);
     const botList = rows.filter(x => active.has(x.pid)).sort((a, b) => a[key] - b[key] || a.u - b.u).slice(0, 10);
-    const sellTable = list => '<table><thead><tr><th>Product</th><th>Units</th><th>Sales</th></tr></thead><tbody>' + (list.length ? list.map(x => `<tr><td>${esc(pName(x.pid))}</td><td>${int(x.u)}</td><td>${money(x.r)}</td></tr>`).join('') : '<tr><td colspan="3" class="muted">No sales in this period</td></tr>') + '</tbody></table>';
+    const sellTable = list => '<table><thead><tr><th>Product</th><th>Units</th><th>Sales</th></tr></thead><tbody>' + (list.length ? list.map(x => `<tr><td>${pLink(x.pid)}</td><td>${int(x.u)}</td><td>${money(x.r)}</td></tr>`).join('') : '<tr><td colspan="3" class="muted">No sales in this period</td></tr>') + '</tbody></table>';
+    const lt = (latest || []).filter(x => !ids || ids.includes(x.m)).slice(0, 15);
+    const txHref = `#/tx?from=${P.a}&to=${P.b}${state.loc ? '&loc=' + state.loc : ''}`;
 
-    // latest transactions
-    const lt = (latest || []).filter(x => !state.loc || LOC[state.loc].includes(x.m)).slice(0, 15);
-    const txRows = lt.map(x => `<tr><td>${esc(new Date(x.at).toLocaleString('en-US', {timeZone:TZ, month:'numeric', day:'numeric', hour:'numeric', minute:'2-digit'}))}</td><td>${esc(mName(x.m))}</td><td>${esc((x.items || []).map(i => (i.q > 1 ? i.q + '× ' : '') + (snap.products[i.p] ? pName(i.p) : i.n) + (i.refund ? ' (refunded)' : '')).join(', '))}</td><td>${money(x.paid)}</td></tr>`).join('');
-
-    app.innerHTML = `
-      <header>
-        <div><h1>Texas Eagle Vending</h1><div class="muted small">Data as of ${esc(when)}${status && !status.ok ? ' — last refresh failed' : ''} · updates 6 AM, 12 PM, 6 PM, 12 AM</div></div>
-        <div style="display:flex;gap:12px;align-items:center"><span class="muted small">${esc(s.email)}</span><form method="post" action="/api/auth/logout" style="margin:0"><button class="link">Sign out</button></form></div>
-      </header>
+    app.innerHTML = header('') + `
       <div class="head" style="margin:0">
         <div class="tabs" role="group" aria-label="Period">${Object.keys(names).map(k => `<button data-p="${k}" aria-pressed="${state.period === k}">${names[k]}</button>`).join('')}</div>
         <div class="seg" role="group" aria-label="Location">${locBtn('', 'All')}${locBtn('RR', 'Round Rock')}${locBtn('SA', 'San Antonio')}</div>
       </div>
       <div class="muted small" style="margin-top:-6px">${esc(names[state.period])}: ${esc(label(P.a, P.b))}</div>
       <section class="kpis">
-        <div class="card kpi"><div class="lbl">Sales</div><div class="num">${money(cur.r)}</div>${deltaHtml(cur.r, prev.r, P.vs)}</div>
-        <div class="card kpi"><div class="lbl">Orders</div><div class="num">${int(cur.o)}</div>${deltaHtml(cur.o, prev.o, P.vs)}</div>
+        <a class="card kpi" href="${txHref}" style="color:inherit;text-decoration:none"><div class="lbl">Sales</div><div class="num">${money(cur.r)}</div>${deltaHtml(cur.r, prev.r, P.vs)}</a>
+        <a class="card kpi" href="${txHref}" style="color:inherit;text-decoration:none"><div class="lbl">Orders</div><div class="num">${int(cur.o)}</div>${deltaHtml(cur.o, prev.o, P.vs)}</a>
         <div class="card kpi"><div class="lbl">Items sold</div><div class="num">${int(cur.u)}</div>${deltaHtml(cur.u, prev.u, P.vs)}</div>
         <div class="card kpi"><div class="lbl">Avg order</div><div class="num">${cur.o ? money(cur.r / cur.o) : '—'}</div><span class="delta muted">sales ÷ orders</span></div>
         <div class="card kpi"><div class="lbl">Est. sales tax</div><div class="num">${money(cur.r - cur.r / 1.0825)}</div><span class="delta muted">8.25% backed out, before exemptions</span></div>
         <div class="card kpi"><div class="lbl">Est. card fees</div><div class="num">${money(fees(cur))}</div><span class="delta muted">5.95% + $0.05 per order</span></div>
       </section>
       <section class="card">
-        <h2>By machine</h2>
+        <div class="head"><h2>By machine</h2><a class="small" href="#/total">Business total by day ›</a></div>
         <div class="scroll"><table><thead><tr><th>Machine</th><th>Sales</th><th>Orders</th><th>Items</th><th>Avg order</th><th>vs ${esc(P.vs)}</th></tr></thead><tbody>${mt}</tbody></table></div>
       </section>
       <section class="card">
-        <div class="head"><h2>Daily sales, last 30 days</h2><span class="small muted"><span style="color:var(--bar)">■</span> Round Rock &nbsp; <span style="color:var(--bar2)">■</span> San Antonio</span></div>
-        ${chart30()}
+        <div class="head"><h2>Daily sales, last 30 days</h2>${legend}</div>
+        ${barChart(lastDays(30), ids)}
       </section>
       <section class="grid2">
         <div class="card"><div class="head"><h2>Top 10 sellers</h2><div class="seg"><button data-s="units" aria-pressed="${state.sellers === 'units'}">Units</button><button data-s="sales" aria-pressed="${state.sellers === 'sales'}">Dollars</button></div></div>${sellTable(topList)}</div>
         <div class="card"><div class="head"><h2>Bottom 10 (in machines now)</h2></div>${sellTable(botList)}</div>
       </section>
       <section class="card">
-        <h2>Latest transactions</h2>
-        <div class="scroll"><table class="tx"><thead><tr><th>Time</th><th>Machine</th><th>Items</th><th>Paid</th></tr></thead><tbody>${txRows || '<tr><td colspan="4" class="muted">No recent sales</td></tr>'}</tbody></table></div>
+        <div class="head"><h2>Latest transactions</h2><a class="small" href="${txHref}">All transactions ›</a></div>
+        ${txTable(lt)}
       </section>
       <p class="muted small">View only. Sales are what customers paid, tax included, minus refunds. Profit by product comes in a later step.</p>`;
-
-    app.querySelectorAll('[data-p]').forEach(b => b.onclick = () => { state.period = b.dataset.p; save(); render(); });
-    app.querySelectorAll('[data-loc]').forEach(b => b.onclick = () => { state.loc = b.dataset.loc; save(); render(); });
-    app.querySelectorAll('[data-s]').forEach(b => b.onclick = () => { state.sellers = b.dataset.s; save(); render(); });
+    app.querySelectorAll('[data-p]').forEach(b => b.onclick = () => { state.period = b.dataset.p; save(); home(); });
+    app.querySelectorAll('[data-loc]').forEach(b => b.onclick = () => { state.loc = b.dataset.loc; save(); home(); });
+    app.querySelectorAll('[data-s]').forEach(b => b.onclick = () => { state.sellers = b.dataset.s; save(); home(); });
   }
-  render();
+
+  // ---------- Business total by day ----------
+  function total() {
+    const n = state.totalDays;
+    const days = lastDays(n);
+    const rows = days.slice().reverse().map(d => {
+      const day = agg.days[d] || { m: {} };
+      const v = id => (day.m[id] || {}).r || 0;
+      const o = Object.values(day.m).reduce((a, x) => a + x.o, 0), u = Object.values(day.m).reduce((a, x) => a + x.u, 0);
+      const rr = v('B101219') + v('B111755'), sa = v('B101231') + v('B111750');
+      return { d, rr, sa, t: rr + sa, o, u, cells: M.map(m => v(m.id)) };
+    });
+    const tot = rows.reduce((a, r) => ({ rr: a.rr + r.rr, sa: a.sa + r.sa, t: a.t + r.t, o: a.o + r.o, u: a.u + r.u }), { rr: 0, sa: 0, t: 0, o: 0, u: 0 });
+    const best = rows.reduce((a, r) => r.t > a.t ? r : a, rows[0]);
+    app.innerHTML = header('Business total') + `
+      <div class="head" style="margin:0"><h2 style="margin:0;font-size:18px">Business total, all 4 machines</h2>
+        <div class="seg">${[30, 60, 90].map(k => `<button data-n="${k}" aria-pressed="${n === k}">${k} days</button>`).join('')}</div></div>
+      <section class="kpis">
+        <div class="card kpi"><div class="lbl">Sales, ${n} days</div><div class="num">${money(tot.t)}</div><span class="delta muted">RR ${money(tot.rr)} · SA ${money(tot.sa)}</span></div>
+        <div class="card kpi"><div class="lbl">Per day</div><div class="num">${money(tot.t / n)}</div><span class="delta muted">${int(tot.o / n)} orders a day</span></div>
+        <div class="card kpi"><div class="lbl">Best day</div><div class="num">${money(best.t)}</div><span class="delta muted">${esc(fmtDay(best.d, {weekday:'short'}))}</span></div>
+        <div class="card kpi"><div class="lbl">Est. card fees</div><div class="num">${money(tot.t * 0.0595 + tot.o * 0.05)}</div><span class="delta muted">plus $160 a month haha service fee (4 × $40)</span></div>
+      </section>
+      <section class="card"><div class="head"><h2>Daily sales</h2>${legend}</div>${barChart(days)}</section>
+      <section class="card"><div class="scroll"><table>
+        <thead><tr><th>Day</th>${M.map(m => `<th>${esc(m.name)}</th>`).join('')}<th>Total</th><th>Orders</th><th>Items</th></tr></thead>
+        <tbody><tr class="total"><td>${n}-day total</td>${M.map((m, i) => `<td>${money(rows.reduce((a, r) => a + r.cells[i], 0))}</td>`).join('')}<td>${money(tot.t)}</td><td>${int(tot.o)}</td><td>${int(tot.u)}</td></tr>
+        ${rows.map(r => `<tr><td><a href="#/tx?from=${r.d}&to=${r.d}">${esc(fmtDay(r.d, {weekday:'short'}))}</a></td>${r.cells.map(c => `<td>${c ? money(c) : '<span class="muted">—</span>'}</td>`).join('')}<td><b>${money(r.t)}</b></td><td>${int(r.o)}</td><td>${int(r.u)}</td></tr>`).join('')}</tbody>
+      </table></div></section>`;
+    app.querySelectorAll('[data-n]').forEach(b => b.onclick = () => { state.totalDays = Number(b.dataset.n); save(); total(); });
+  }
+
+  // ---------- Transactions ----------
+  async function tx(q) {
+    const from = q.get('from') || add(today, -6), to = q.get('to') || today;
+    const m = q.get('m') || '', loc = q.get('loc') || '', p = q.get('p') || '';
+    const opts = M.map(x => `<option value="${x.id}" ${m === x.id ? 'selected' : ''}>${esc(x.name)}</option>`).join('');
+    const prodOpts = Object.entries(snap.products).sort((a, b) => pName(a[0]).localeCompare(pName(b[0]))).map(([id]) => `<option value="${esc(id)}" ${p === id ? 'selected' : ''}>${esc(pName(id))}</option>`).join('');
+    app.innerHTML = header('Transactions') + `
+      <section class="card"><form class="filters" id="f">
+        <label>From<input type="date" name="from" value="${from}" max="${today}"></label>
+        <label>To<input type="date" name="to" value="${to}" max="${today}"></label>
+        <label>Machine<select name="m"><option value="">All machines</option>${loc ? '' : ''}${opts}</select></label>
+        <label>Product<select name="p"><option value="">All products</option>${prodOpts}</select></label>
+        <button class="btn" type="submit">Show</button>
+      </form><div class="small muted" style="margin-top:8px">Up to 93 days at a time.</div></section>
+      <section class="card" id="res"><p class="muted">Loading…</p></section>`;
+    document.getElementById('f').onsubmit = e => { e.preventDefault(); const f = new FormData(e.target); const u = new URLSearchParams(); for (const [k, v] of f) if (v) u.set(k, v); location.hash = '#/tx?' + u.toString(); };
+    let list;
+    try { list = await get(`range&from=${from}&to=${to}${m ? '&m=' + m : ''}${p ? '&p=' + encodeURIComponent(p) : ''}`); }
+    catch (e) { document.getElementById('res').innerHTML = `<p class="warn">${esc(e.message)}</p>`; return; }
+    if (loc && !m) list = list.filter(x => LOC[loc].includes(x.m));
+    const sumPaid = list.reduce((a, x) => a + x.paid, 0);
+    let units = 0, prodPaid = 0;
+    if (p) for (const x of list) for (const i of x.items) if (i.p === p && !i.refund) { units += i.q; prodPaid += Number(i.paid || 0); }
+    document.getElementById('res').innerHTML = `<div class="head"><h2>${int(list.length)} sales · ${money(sumPaid)}${p ? ` · ${esc(pName(p))}: ${int(units)} sold, ${money(prodPaid)}` : ''}</h2><span class="small muted">${esc(label(from, to))}${loc && !m ? ' · ' + (loc === 'RR' ? 'Round Rock' : 'San Antonio') : ''}</span></div>${txTable(list.slice(0, 500))}${list.length > 500 ? '<p class="small muted">Showing the latest 500. Narrow the dates to see the rest.</p>' : ''}`;
+  }
+
+  // ---------- Product ----------
+  function product(id) {
+    const p = snap.products[id] || { name: id };
+    const days = lastDays(90);
+    const byMachine = M.map(m => { let u = 0, r = 0; for (const d of days) { const v = ((agg.days[d] || {}).p || {})[id]; if (v && v[m.id]) { u += v[m.id].u; r += v[m.id].r; } } return { m, u, r, stock: ((snap.stock || {})[m.id] || {})[id] || 0, cap: ((snap.capacity || {})[m.id] || {})[id] || 0, lp: ((agg.lastPrice || {})[id] || {})[m.id] }; });
+    const u90 = byMachine.reduce((a, x) => a + x.u, 0), r90 = byMachine.reduce((a, x) => a + x.r, 0);
+    const weeks = []; for (let w = 12; w >= 0; w--) { const end = add(today, -7 * w), start = add(end, -6); let u = 0; for (let d = start; d <= end; d = add(d, 1)) { const v = ((agg.days[d] || {}).p || {})[id]; if (v) for (const x of Object.values(v)) u += x.u; } weeks.push({ start, end, u }); }
+    const maxU = Math.max(1, ...weeks.map(w => w.u));
+    const W = 720, H = 150, L = 30, B = 22, T = 8, bw = (W - L - 8) / weeks.length;
+    let g = ''; const top = Math.ceil(maxU / 4) * 4 || 4; const y = v => T + (H - T - B) * (1 - v / top);
+    for (let i = 0; i <= 4; i++) { const v = top / 4 * i; g += `<line x1="${L}" x2="${W - 4}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${L - 6}" y="${y(v) + 4}" text-anchor="end">${v}</text>`; }
+    weeks.forEach((w, i) => { const x = L + i * bw + 3; g += `<g><title>Week of ${fmtDay(w.start)}: ${w.u} sold</title><rect x="${x}" y="${y(w.u)}" width="${bw - 6}" height="${y(0) - y(w.u)}" fill="var(--bar)" rx="2"/></g>`; if (i % 3 === 0 || i === weeks.length - 1) g += `<text x="${x + (bw - 6) / 2}" y="${H - 5}" text-anchor="middle">${new Date(w.start + 'T12:00:00Z').toLocaleDateString('en-US', {month:'numeric', day:'numeric', timeZone:'UTC'})}</text>`; });
+    const pr = byMachine.filter(x => x.lp).map(x => x.lp.price);
+    const priceGap = pr.length > 1 && Math.max(...pr) !== Math.min(...pr);
+    app.innerHTML = header('Product') + `
+      <h2 style="font-size:18px;margin:0">${esc(pName(id))}</h2>
+      <div class="muted small" style="margin-top:-8px">${p.barcode ? 'Barcode ' + esc(p.barcode) + ' · ' : ''}haha cost ${p.cost != null ? money(Number(p.cost)) : '—'} · haha base price ${p.price != null ? money(Number(p.price)) : '—'}</div>
+      <section class="kpis">
+        <div class="card kpi"><div class="lbl">Sold, 90 days</div><div class="num">${int(u90)}</div><span class="delta muted">${(u90 / 90 * 7).toFixed(1)} a week</span></div>
+        <div class="card kpi"><div class="lbl">Sales, 90 days</div><div class="num">${money(r90)}</div><span class="delta muted">tax included</span></div>
+        <div class="card kpi"><div class="lbl">In machines now</div><div class="num">${int(byMachine.reduce((a, x) => a + x.stock, 0))}</div><span class="delta muted">storage not shown yet</span></div>
+      </section>
+      <section class="card"><div class="head"><h2>Sold per week, last 13 weeks</h2></div><svg viewBox="0 0 ${W} ${H}" width="100%" style="max-height:220px" role="img" aria-label="Units sold per week">${g}</svg></section>
+      <section class="card"><div class="head"><h2>By machine</h2>${priceGap ? '<span class="tag warn">Price differs between machines</span>' : ''}</div><div class="scroll"><table>
+        <thead><tr><th>Machine</th><th>Stock now</th><th>Slot capacity</th><th>Sold, 90 days</th><th>Sales, 90 days</th><th>Price at last sale</th><th>Last sale</th></tr></thead>
+        <tbody>${byMachine.map(x => `<tr><td>${mLink(x.m.id)}</td><td>${x.stock || (x.cap ? 0 : '<span class="muted">—</span>')}</td><td>${x.cap || '<span class="muted">—</span>'}</td><td>${int(x.u)}</td><td>${money(x.r)}</td><td>${x.lp ? money(x.lp.price) : '<span class="muted">—</span>'}</td><td>${x.lp ? esc(fmtTime(x.lp.at)) : '<span class="muted">—</span>'}</td></tr>`).join('')}</tbody>
+      </table></div></section>
+      <p><a href="#/tx?from=${add(today, -89)}&to=${today}&p=${encodeURIComponent(id)}">See this product's transactions, last 90 days ›</a></p>`;
+  }
+
+  // ---------- Machine ----------
+  function machine(id) {
+    const m = M.find(x => x.id === id) || { id, name: id };
+    const stock = (snap.stock || {})[id] || {}, cap = (snap.capacity || {})[id] || {};
+    const days30 = lastDays(30);
+    const sold = {}; for (const d of days30) for (const [pid, byM] of Object.entries(((agg.days[d] || {}).p) || {})) if (byM[id]) sold[pid] = (sold[pid] || 0) + byM[id].u;
+    const pids = [...new Set([...Object.keys(stock), ...Object.keys(cap)])];
+    const rows = pids.map(pid => { const q = stock[pid] || 0, c = cap[pid] || 0, s30 = sold[pid] || 0; const perDay = s30 / 30; return { pid, q, c, s30, daysLeft: perDay > 0 ? q / perDay : null }; })
+      .sort((a, b) => (a.daysLeft ?? 9999) - (b.daysLeft ?? 9999) || a.q - b.q);
+    const totStock = rows.reduce((a, r) => a + r.q, 0), totCap = rows.reduce((a, r) => a + r.c, 0);
+    const t30 = sumRange(add(today, -29), today, [id]);
+    app.innerHTML = header('Machine') + `
+      <h2 style="font-size:18px;margin:0">${esc(m.name)} <span class="muted small">${esc(id)}</span></h2>
+      <section class="kpis">
+        <div class="card kpi"><div class="lbl">Items in machine</div><div class="num">${int(totStock)}</div><span class="delta muted">${totCap ? 'of ' + int(totCap) + ' slot capacity set' : 'slot capacity not set'}</span></div>
+        <div class="card kpi"><div class="lbl">Sales, 30 days</div><div class="num">${money(t30.r)}</div><span class="delta muted">${int(t30.o)} orders · ${int(t30.u)} items</span></div>
+        <div class="card kpi"><div class="lbl">Products in machine</div><div class="num">${int(rows.filter(r => r.q > 0).length)}</div><span class="delta muted">${int(rows.filter(r => r.q === 0).length)} empty slots</span></div>
+      </section>
+      <section class="card"><div class="head"><h2>Daily sales, last 30 days</h2></div>${barChart(days30, [id])}</section>
+      <section class="card"><div class="head"><h2>Stock by product</h2><span class="small muted">Sorted by days of stock left at the last 30 days' pace</span></div><div class="scroll"><table>
+        <thead><tr><th>Product</th><th>Stock now</th><th>Slot capacity</th><th>Sold, 30 days</th><th>Days left</th></tr></thead>
+        <tbody>${rows.map(r => `<tr><td>${pLink(r.pid)}</td><td>${r.q === 0 ? '<span class="warn">0</span>' : int(r.q)}</td><td>${r.c || '<span class="muted">—</span>'}</td><td>${int(r.s30)}</td><td>${r.q === 0 ? '<span class="warn">empty</span>' : r.daysLeft == null ? '<span class="muted">no sales</span>' : (r.daysLeft < 7 ? '<span class="warn">' + Math.round(r.daysLeft) + '</span>' : Math.round(r.daysLeft))}</td></tr>`).join('')}</tbody>
+      </table></div></section>
+      <p><a href="#/tx?from=${add(today, -6)}&to=${today}&m=${id}">See this machine's transactions ›</a></p>`;
+  }
+
+  async function route() {
+    const h = location.hash.replace(/^#/, '') || '/';
+    const [path, qs] = h.split('?');
+    const q = new URLSearchParams(qs || '');
+    window.scrollTo(0, 0);
+    if (path === '/total') return total();
+    if (path === '/tx') return tx(q);
+    if (path.startsWith('/product/')) return product(decodeURIComponent(path.slice(9)));
+    if (path.startsWith('/machine/')) return machine(path.slice(9));
+    return home();
+  }
+  window.addEventListener('hashchange', route);
+  route();
 })();
 </script>
 </body>
