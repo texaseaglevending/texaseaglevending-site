@@ -1,0 +1,434 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>TEV Admin</title>
+<style>
+:root{--bg:#f4f5f7;--card:#fff;--ink:#16181d;--muted:#5d6472;--line:#e1e4ea;--navy:#12284c;--accent:#1f5fbf;--good:#1a7f45;--bad:#b42318;--soft:#eef1f6;--bar:#cc5500;--bar2:#5aa9e6;--all:#2a2e35}
+@media (prefers-color-scheme:dark){:root{--bg:#111316;--card:#1a1d22;--ink:#eceef2;--muted:#a3aab6;--line:#2c3139;--navy:#86a6d6;--accent:#7fa7e6;--good:#5cc98b;--bad:#f2877d;--soft:#22262d;--bar:#e07a2e;--bar2:#8ecbf5;--all:#ffffff}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:1180px;margin:0 auto;padding:20px 16px 48px;display:flex;flex-direction:column;gap:16px}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+h1{margin:0;font-size:20px;letter-spacing:.2px}
+h2{margin:0 0 12px;font-size:15px}
+.muted{color:var(--muted)}.small{font-size:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px}
+.tabs{display:flex;gap:6px;flex-wrap:wrap}
+.tabs button,.seg button{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:999px;padding:6px 12px;font:inherit;cursor:pointer}
+.tabs button[aria-pressed=true],.seg button[aria-pressed=true]{background:var(--navy);border-color:var(--navy);color:#fff}
+@media (prefers-color-scheme:dark){.tabs button[aria-pressed=true],.seg button[aria-pressed=true]{color:#111316}}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.kpi .lbl{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px}
+.kpi .num{font-size:26px;font-weight:700;font-variant-numeric:tabular-nums;margin-top:2px}
+.delta{font-size:12px;font-variant-numeric:tabular-nums}.up{color:var(--good)}.down{color:var(--bad)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media (max-width:820px){.grid2{grid-template-columns:1fr}}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+th,td{padding:8px 6px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th:first-child,td:first-child{text-align:left;white-space:normal}
+th{font-size:12px;color:var(--muted);font-weight:600}
+tr.total td{font-weight:700;background:var(--soft)}
+.scroll{overflow-x:auto}
+.head{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.head h2{margin:0}
+.seg{display:flex;gap:4px}
+.seg button{padding:4px 10px;font-size:12px}
+svg text{fill:var(--muted);font-size:11px}
+.btn{background:var(--navy);color:#fff;border:0;border-radius:8px;padding:8px 14px;font:inherit;cursor:pointer;text-decoration:none;display:inline-block}
+@media (prefers-color-scheme:dark){.btn{color:#111316}}
+.link{background:none;border:0;color:var(--accent);font:inherit;cursor:pointer;padding:0}
+.center{max-width:420px;margin:12vh auto;text-align:center}
+.tx td:nth-child(2),.tx th:nth-child(2),.tx td:nth-child(3),.tx th:nth-child(3){white-space:normal;text-align:left}.tx td:nth-child(3){color:var(--muted)}
+a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
+.crumbs{font-size:13px}.crumbs a{margin-right:6px}
+.filters{display:flex;gap:8px;flex-wrap:wrap;align-items:end}
+.filters label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted)}
+.filters input,.filters select{font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink)}
+td.l,th.l{text-align:left}
+.tag{display:inline-block;font-size:11px;padding:1px 6px;border-radius:999px;background:var(--soft);color:var(--muted)}
+.warn{color:var(--bad)}
+</style>
+</head>
+<body>
+<div class="wrap" id="app"><div class="center card"><p class="muted">Checking sign-in…</p></div></div>
+<script>
+(async function(){
+  if (location.search) history.replaceState(null, '', location.pathname + location.hash);
+  const app = document.getElementById('app');
+  const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const TZ = 'America/Chicago';
+  const money = n => (n < 0 ? '−$' : '$') + Math.abs(n || 0).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+  const int = n => Math.round(n || 0).toLocaleString('en-US');
+
+  let s = {};
+  try { s = await fetch('/api/auth/session', {cache:'no-store'}).then(r => r.json()); } catch (e) {}
+  if (!s.signedIn) {
+    app.innerHTML = '<div class="center card"><h1>Texas Eagle Vending Admin</h1><p class="muted">Sign in with the TEV Google account to view the dashboard.</p><a class="btn" href="/api/auth/login">Sign in with Google</a></div>';
+    return;
+  }
+
+  const get = q => fetch('/api/dash-data?part=' + q, {cache:'no-store'}).then(r => r.json()).then(j => { if (!j.ok) throw new Error(j.error || 'load failed'); return j.data; });
+  let snap, agg, status, latest;
+  try { [snap, agg, status, latest] = await Promise.all([get('snapshot'), get('agg'), get('status'), get('latest&n=20')]); }
+  catch (e) { app.innerHTML = '<div class="center card"><p>Could not load data. Try reloading.</p></div>'; return; }
+  if (!snap || !agg) { app.innerHTML = '<div class="center card"><p>No data yet. The first refresh has not run.</p></div>'; return; }
+
+  const M = snap.machines;
+  const LOC = { RR: ['B101219', 'B111755'], SA: ['B101231', 'B111750'] };
+  const mName = id => (M.find(m => m.id === id) || {}).name || id;
+  const pName = id => { const p = snap.products[id]; return p ? (p.alias || p.name) : id; };
+  const pLink = (id, fallback) => `<a href="#/product/${encodeURIComponent(id)}">${esc(snap.products[id] ? pName(id) : (fallback || id))}</a>`;
+  const mLink = id => `<a href="#/machine/${id}">${esc(mName(id))}</a>`;
+
+  const ymd = d => new Intl.DateTimeFormat('en-CA', {timeZone:TZ, year:'numeric', month:'2-digit', day:'2-digit'}).format(d);
+  const add = (day, n) => { const d = new Date(day + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+  const today = ymd(new Date());
+  const dow = day => new Date(day + 'T12:00:00Z').getUTCDay();
+  const monthStart = day => day.slice(0, 8) + '01';
+  const monthEnd = day => { const [y, m] = day.split('-').map(Number); return new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10); };
+  const addMonths = (day, n) => { const [y, m, d] = day.split('-').map(Number); const t = new Date(Date.UTC(y, m - 1 + n, 1)); const last = new Date(Date.UTC(t.getUTCFullYear(), t.getUTCMonth() + 1, 0)).getUTCDate(); return new Date(Date.UTC(t.getUTCFullYear(), t.getUTCMonth(), Math.min(d, last))).toISOString().slice(0, 10); };
+  const fmtDay = (x, o) => new Date(x + 'T12:00:00Z').toLocaleDateString('en-US', Object.assign({month:'short', day:'numeric', timeZone:'UTC'}, o || {}));
+  const label = (a, b) => a === b ? fmtDay(a) : fmtDay(a) + ' – ' + fmtDay(b);
+  const fmtTime = t => new Date(t).toLocaleString('en-US', {timeZone:TZ, month:'numeric', day:'numeric', hour:'numeric', minute:'2-digit'});
+
+  const periods = {
+    today:     () => ({ a: today, b: today, pa: add(today, -7), pb: add(today, -7), vs: 'same day last week' }),
+    yesterday: () => { const y = add(today, -1); return { a: y, b: y, pa: add(y, -7), pb: add(y, -7), vs: 'same day last week' }; },
+    week:      () => { const a = add(today, -((dow(today) + 6) % 7)); return { a, b: today, pa: add(a, -7), pb: add(today, -7), vs: 'same days last week' }; },
+    month:     () => { const a = monthStart(today); return { a, b: today, pa: addMonths(a, -1), pb: addMonths(today, -1), vs: 'same days last month' }; },
+    lastmonth: () => { const a = addMonths(monthStart(today), -1), b = monthEnd(a); const pa = addMonths(a, -1); return { a, b, pa, pb: monthEnd(pa), vs: 'the month before' }; },
+  };
+  const names = {today:'Today', yesterday:'Yesterday', week:'This week', month:'This month', lastmonth:'Last month'};
+
+  // Totals over a date range, limited to a list of machines (or all)
+  function sumRange(a, b, ids) {
+    const t = { o: 0, r: 0, u: 0, byM: {}, byP: {} };
+    for (let d = a; d <= b; d = add(d, 1)) {
+      const day = agg.days[d]; if (!day) continue;
+      for (const [mid, v] of Object.entries(day.m)) { if (ids && !ids.includes(mid)) continue; const x = (t.byM[mid] ||= {o:0,r:0,u:0}); x.o += v.o; x.r += v.r; x.u += v.u; t.o += v.o; t.r += v.r; t.u += v.u; }
+      for (const [pid, byM] of Object.entries(day.p)) for (const [mid, v] of Object.entries(byM)) { if (ids && !ids.includes(mid)) continue; const x = (t.byP[pid] ||= {u:0,r:0}); x.u += v.u; x.r += v.r; }
+    }
+    return t;
+  }
+  const fees = t => t.r * 0.0595 + t.o * 0.05;
+  // ---- Profit: sale price minus sales tax (by product tax type), haha card fee, and haha product cost ----
+  const RATE = 0.0825;
+  const taxShare = pid => { const t = (snap.products[pid] || {}).tax || 'full'; const k = t === 'exempt' ? 0 : t === 'food' ? 0.5 : 1; return RATE * k / (1 + RATE * k); };
+  const costOf = pid => Number((snap.products[pid] || {}).cost || 0);
+  const PENDING = /think turkey jerky/i; // cost waiting on the SA count
+  function profitParts(pid, v) { const tax = v.r * taxShare(pid), fee = v.r * 0.0595 + (v.f ?? 0), cost = v.u * costOf(pid); return { u: v.u, r: v.r, tax, fee, cost, profit: v.r - tax - fee - cost }; }
+  function profitRange(a, b, ids) {
+    const byP = {}; const t = { u: 0, r: 0, tax: 0, fee: 0, cost: 0, profit: 0 };
+    for (let d = a; d <= b; d = add(d, 1)) {
+      const day = agg.days[d]; if (!day) continue;
+      for (const [pid, byM] of Object.entries(day.p)) for (const [mid, v] of Object.entries(byM)) {
+        if (ids && !ids.includes(mid)) continue;
+        const x = profitParts(pid, v), y = (byP[pid] ||= { u: 0, r: 0, tax: 0, fee: 0, cost: 0, profit: 0 });
+        for (const k of Object.keys(t)) { y[k] += x[k]; t[k] += x[k]; }
+      }
+    }
+    return { t, byP };
+  }
+  // haha monthly service fee ($40 per machine), from haha's billing history; $160 a month after that
+  const SVC = { '2025-09': 0, '2025-10': 320, '2025-11': 40, '2025-12': 160, '2026-03': 158.5 };
+  const svcFor = mo => SVC[mo] ?? 160;
+  const pct = (a, b) => b ? (a / b * 100).toFixed(0) + '%' : '—';
+  const deltaHtml = (cur, prev, vs) => {
+    if (!prev) return '<span class="delta muted">—' + (vs ? ' no sales ' + esc(vs) : '') + '</span>';
+    const pct = (cur - prev) / prev * 100;
+    return '<span class="delta ' + (pct >= 0 ? 'up' : 'down') + '">' + (pct >= 0 ? '▲ ' : '▼ ') + Math.abs(pct).toFixed(0) + '%</span>' + (vs ? ' <span class="delta muted">vs ' + esc(vs) + '</span>' : '');
+  };
+
+  let state = { period: 'month', loc: '', sellers: 'units', totalDays: 30 };
+  try { state = Object.assign(state, JSON.parse(localStorage.getItem('tev-dash') || '{}')); } catch (e) {}
+  const save = () => { try { localStorage.setItem('tev-dash', JSON.stringify(state)); } catch (e) {} };
+
+  const when = status && status.finishedAt ? new Date(status.finishedAt).toLocaleString('en-US', {timeZone:TZ, month:'short', day:'numeric', hour:'numeric', minute:'2-digit'}) : 'not yet';
+  const header = crumbs => `
+    <header>
+      <div><h1><a href="#/" style="color:inherit">Texas Eagle Vending</a></h1><div class="muted small">Data as of ${esc(when)}${status && !status.ok ? ' <span class="warn">— last refresh failed</span>' : ''} · updates 6 AM, 12 PM, 6 PM, 12 AM</div></div>
+      <div style="display:flex;gap:12px;align-items:center"><span class="muted small">${esc(s.email)}</span><form method="post" action="/api/auth/logout" style="margin:0"><button class="link">Sign out</button></form></div>
+    </header>
+    ${crumbs ? `<div class="crumbs"><a href="#/">Home</a> › ${crumbs}</div>` : ''}`;
+
+  // Stacked bar chart of daily sales (RR dark, SA light) for a list of days
+  function barChart(days, ids) {
+    const vals = days.map(d => { const day = agg.days[d]; let rr = 0, sa = 0; if (day) for (const [mid, v] of Object.entries(day.m)) { if (ids && !ids.includes(mid)) continue; if (LOC.RR.includes(mid)) rr += v.r; else sa += v.r; } return { d, rr, sa }; });
+    const max = Math.max(20, ...vals.map(v => v.rr + v.sa));
+    const step = Math.ceil(max / 4 / 25) * 25 || 5, top = step * 4;
+    const showDow = days.length <= 31;
+    const W = 720, H = showDow ? 204 : 190, L = 40, B = showDow ? 36 : 22, T = 8, bw = (W - L - 8) / days.length;
+    const DOW = ['Su', 'M', 'Tu', 'W', 'Th', 'F', 'Sa'];
+    const y = v => T + (H - T - B) * (1 - v / top);
+    const every = Math.max(1, Math.round(days.length / 6));
+    let g = '';
+    for (let i = 0; i <= 4; i++) { const v = step * i; g += `<line x1="${L}" x2="${W - 4}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${L - 6}" y="${y(v) + 4}" text-anchor="end">$${v}</text>`; }
+    vals.forEach((v, i) => {
+      const x = L + i * bw + Math.min(2, bw * 0.15), w = Math.max(1, bw - Math.min(4, bw * 0.3));
+      g += `<g><title>${fmtDay(v.d, {weekday:'short'})}: ${money(v.rr + v.sa)} (RR ${money(v.rr)}, SA ${money(v.sa)})</title><rect x="${x}" y="${y(v.rr)}" width="${w}" height="${y(0) - y(v.rr)}" fill="var(--bar)" rx="1.5"/><rect x="${x}" y="${y(v.rr + v.sa)}" width="${w}" height="${y(v.rr) - y(v.rr + v.sa)}" fill="var(--bar2)" rx="1.5"/></g>`;
+      if (showDow) {
+        const wd = new Date(v.d + 'T12:00:00Z').getUTCDay();
+        g += `<text x="${x + w / 2}" y="${H - B + 14}" text-anchor="middle" style="${wd === 0 || wd === 6 ? 'font-weight:700' : ''}">${DOW[wd]}</text>`;
+        if (wd === 1 || i === 0) g += `<text x="${x + w / 2}" y="${H - 4}" text-anchor="middle">${new Date(v.d + 'T12:00:00Z').toLocaleDateString('en-US', {month:'numeric', day:'numeric', timeZone:'UTC'})}</text>`;
+      } else if ((days.length - 1 - i) % every === 0) g += `<text x="${x + w / 2}" y="${H - 5}" text-anchor="middle">${new Date(v.d + 'T12:00:00Z').toLocaleDateString('en-US', {month:'numeric', day:'numeric', timeZone:'UTC'})}</text>`;
+    });
+    return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-height:260px" role="img" aria-label="Daily sales">${g}</svg>`;
+  }
+  const legend = '<span class="small muted"><span style="color:var(--bar)">■</span> Round Rock &nbsp; <span style="color:var(--bar2)">■</span> San Antonio</span>';
+  const lastDays = n => { const out = []; for (let i = n - 1; i >= 0; i--) out.push(add(today, -i)); return out; };
+
+  const txTable = list => `<div class="scroll"><table class="tx"><thead><tr><th>Time</th><th>Machine</th><th>Items</th><th>Paid</th></tr></thead><tbody>${
+    list.length ? list.map(x => `<tr><td>${esc(fmtTime(x.at))}</td><td>${mLink(x.m)}</td><td>${(x.items || []).map(i => (i.q > 1 ? i.q + '× ' : '') + pLink(i.p, i.n) + ' <span class="muted">' + money(Number(i.price)) + '</span>' + (i.refund ? ' <span class="tag">refunded</span>' : '')).join(', ')}</td><td>${money(x.paid)}${x.refund ? ' <span class="tag">refunded</span>' : ''}</td></tr>`).join('') : '<tr><td colspan="4" class="muted">No sales match</td></tr>'
+  }</tbody></table></div>`;
+
+
+  // Month-over-month sales: Round Rock, San Antonio and all machines. Shown at the bottom of every view.
+  function monthChart() {
+    const months = [...new Set(Object.keys(agg.days).filter(d => d <= today).map(d => d.slice(0, 7)))].sort();
+    const rows = months.map(mo => { let rr = 0, sa = 0; for (const [d, day] of Object.entries(agg.days)) { if (!d.startsWith(mo) || d > today) continue; for (const [mid, v] of Object.entries(day.m)) { if (LOC.RR.includes(mid)) rr += v.r; else sa += v.r; } } return { mo, rr, sa, all: rr + sa }; })
+      .filter((r, i, a) => r.all > 0 || i > a.findIndex(x => x.all > 0));
+    if (!rows.length) return '';
+    for (const r of rows) { const [y, m] = r.mo.split('-').map(Number); const end = new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10); r.pf = profitRange(r.mo + '-01', end > today ? today : end).t.profit; }
+    const W = 720, H = 240, L = 52, R = 70, B = 28, T = 12;
+    const max = Math.max(...rows.map(r => r.all));
+    const step = Math.ceil(max / 4 / 250) * 250 || 250, top = step * 4;
+    const x = i => L + (rows.length === 1 ? (W - L - R) / 2 : i * (W - L - R) / (rows.length - 1));
+    const y = v => T + (H - T - B) * (1 - v / top);
+    const curMo = today.slice(0, 7);
+    const series = [['all', 'All', 'var(--all)', 2.5], ['rr', 'Round Rock', 'var(--bar)', 2], ['sa', 'San Antonio', 'var(--bar2)', 2]];
+    const moLbl = mo => new Date(mo + '-15T12:00:00Z').toLocaleDateString('en-US', {month:'short', timeZone:'UTC'}) + " '" + mo.slice(2, 4);
+    let g = ''; const ends = [];
+    for (let i = 0; i <= 4; i++) { const v = step * i; g += `<line x1="${L}" x2="${W - R + 8}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${L - 6}" y="${y(v) + 4}" text-anchor="end">$${v.toLocaleString('en-US')}</text>`; }
+    rows.forEach((r, i) => { g += `<text x="${x(i)}" y="${H - 8}" text-anchor="middle">${moLbl(r.mo)}</text>`; });
+    for (const [k, name, color, sw] of series) {
+      const full = rows.filter(r => r.mo !== curMo), pts = full.map(r => `${x(rows.indexOf(r))},${y(r[k])}`).join(' ');
+      g += `<polyline points="${pts}" fill="none" stroke="${color}" stroke-width="${sw}" stroke-linejoin="round"/>`;
+      const last = rows[rows.length - 1];
+      if (last.mo === curMo && rows.length > 1) { const prev = rows[rows.length - 2]; g += `<line x1="${x(rows.length - 2)}" y1="${y(prev[k])}" x2="${x(rows.length - 1)}" y2="${y(last[k])}" stroke="${color}" stroke-width="${sw}" stroke-dasharray="4 4"/>`; }
+      rows.forEach((r, i) => { const partial = r.mo === curMo; g += `<circle cx="${x(i)}" cy="${y(r[k])}" r="3.5" fill="${partial ? 'var(--card)' : color}" stroke="${color}" stroke-width="2"><title>${moLbl(r.mo)}${partial ? ' (to date)' : ''} · ${name}: ${money(r[k])}</title></circle>`; });
+      ends.push({ y: y(rows[rows.length - 1][k]), color, t: name === 'All' ? 'All' : name === 'Round Rock' ? 'RR' : 'SA' });
+    }
+    ends.sort((a, b) => a.y - b.y);
+    for (let i = 1; i < ends.length; i++) if (ends[i].y - ends[i - 1].y < 13) ends[i].y = ends[i - 1].y + 13;
+    for (const e of ends) g += `<text x="${x(rows.length - 1) + 10}" y="${e.y + 4}" style="fill:${e.color};font-weight:600">${e.t}</text>`;
+    const last = rows[rows.length - 1];
+    return `<section class="card" id="mom"><div class="head"><h2>Sales by month</h2><span class="small muted"><b style="color:var(--all)">—</b> All &nbsp; <b style="color:var(--bar)">—</b> Round Rock &nbsp; <b style="color:var(--bar2)">—</b> San Antonio${last.mo === curMo ? ' &nbsp;· open dot = month to date' : ''}</span></div>
+      <svg viewBox="0 0 ${W} ${H}" width="100%" style="max-height:300px" role="img" aria-label="Sales by month for Round Rock, San Antonio and all machines">${g}</svg>
+      <div class="scroll"><table class="small"><thead><tr><th>Month</th>${rows.map(r => `<th>${moLbl(r.mo)}</th>`).join('')}</tr></thead><tbody>
+        <tr><td>Round Rock</td>${rows.map(r => `<td>${money0(r.rr)}</td>`).join('')}</tr>
+        <tr><td>San Antonio</td>${rows.map(r => `<td>${money0(r.sa)}</td>`).join('')}</tr>
+        <tr class="total"><td>All</td>${rows.map(r => `<td>${money0(r.all)}</td>`).join('')}</tr>
+        <tr><td>Profit before haha monthly fee</td>${rows.map(r => `<td>${money0(r.pf)}</td>`).join('')}</tr>
+        <tr><td>haha monthly fee</td>${rows.map(r => `<td>−${money0(svcFor(r.mo))}</td>`).join('')}</tr>
+        <tr class="total"><td>Est. profit</td>${rows.map(r => `<td class="${r.pf - svcFor(r.mo) < 0 ? 'warn' : ''}">${money0(r.pf - svcFor(r.mo))}</td>`).join('')}</tr>
+      </tbody></table></div><p class="small muted" style="margin:8px 0 0">Est. profit uses today's haha product costs for every month.</p></section>`;
+  }
+  const money0 = n => (n < 0 ? '−$' : '$') + Math.abs(Math.round(n || 0)).toLocaleString('en-US');
+
+  // ---------- Home ----------
+  function home() {
+    const P = periods[state.period]();
+    const ids = state.loc ? LOC[state.loc] : null;
+    const cur = sumRange(P.a, P.b, ids), prev = sumRange(P.pa, P.pb, ids);
+    const locBtn = (v, t) => `<button data-loc="${v}" aria-pressed="${state.loc === v}">${t}</button>`;
+    const shown = M.filter(m => !ids || ids.includes(m.id)).map(m => m.id);
+    const row = (nm, c, p, cls) => `<tr class="${cls || ''}"><td>${nm}</td><td>${money(c.r)}</td><td>${int(c.o)}</td><td>${int(c.u)}</td><td>${c.o ? money(c.r / c.o) : '—'}</td><td>${p && p.r ? deltaHtml(c.r, p.r) : '<span class="muted">—</span>'}</td></tr>`;
+    let mt = row(`<a href="#/total">${state.loc ? (state.loc === 'RR' ? 'Round Rock total' : 'San Antonio total') : 'All 4 machines'}</a>`, cur, prev, 'total');
+    for (const id of shown) mt += row(mLink(id), cur.byM[id] || {o:0,r:0,u:0}, prev.byM[id]);
+
+    const active = new Set(); for (const id of shown) for (const [pid, q] of Object.entries((snap.stock || {})[id] || {})) if (q > 0) active.add(pid);
+    const rows = [...new Set([...Object.keys(cur.byP), ...active])].map(pid => ({ pid, u: (cur.byP[pid] || {}).u || 0, r: (cur.byP[pid] || {}).r || 0 }));
+    const key = state.sellers === 'units' ? 'u' : 'r';
+    const topList = rows.filter(x => x.u > 0).sort((a, b) => b[key] - a[key] || b.u - a.u).slice(0, 10);
+    const botList = rows.filter(x => active.has(x.pid)).sort((a, b) => a[key] - b[key] || a.u - b.u).slice(0, 10);
+    const sellTable = list => '<table><thead><tr><th>Product</th><th>Units</th><th>Sales</th></tr></thead><tbody>' + (list.length ? list.map(x => `<tr><td>${pLink(x.pid)}</td><td>${int(x.u)}</td><td>${money(x.r)}</td></tr>`).join('') : '<tr><td colspan="3" class="muted">No sales in this period</td></tr>') + '</tbody></table>';
+    const lt = (latest || []).filter(x => !ids || ids.includes(x.m)).slice(0, 15);
+    const pr = profitRange(P.a, P.b, ids), prp = profitRange(P.pa, P.pb, ids);
+    const profRows = Object.entries(pr.byP).map(([pid, v]) => ({ pid, ...v })).sort((a, b) => b.profit - a.profit);
+    const profShown = state.allProfit ? profRows : profRows.slice(0, 15);
+    const profTable = `<div class="scroll"><table><thead><tr><th>Product</th><th>Units</th><th>Sales</th><th>Sales tax</th><th>Card fees</th><th>Product cost</th><th>Profit</th><th>Margin</th></tr></thead><tbody>
+      <tr class="total"><td>All products</td><td>${int(pr.t.u)}</td><td>${money(pr.t.r)}</td><td>${money(pr.t.tax)}</td><td>${money(pr.t.fee)}</td><td>${money(pr.t.cost)}</td><td>${money(pr.t.profit)}</td><td>${pct(pr.t.profit, pr.t.r - pr.t.tax)}</td></tr>
+      ${profShown.map(x => `<tr><td>${pLink(x.pid)}${PENDING.test(pName(x.pid)) ? ' <span class="tag">cost pending</span>' : ''}${(snap.products[x.pid] || {}).taxCheck ? ' <span class="tag">tax label to check</span>' : ''}</td><td>${int(x.u)}</td><td>${money(x.r)}</td><td>${money(x.tax)}</td><td>${money(x.fee)}</td><td>${money(x.cost)}</td><td class="${x.profit < 0 ? 'warn' : ''}">${money(x.profit)}</td><td>${pct(x.profit, x.r - x.tax)}</td></tr>`).join('')}</tbody></table></div>`;
+    const txHref = `#/tx?from=${P.a}&to=${P.b}${state.loc ? '&loc=' + state.loc : ''}`;
+
+    app.innerHTML = header('') + `
+      <div class="head" style="margin:0">
+        <div class="tabs" role="group" aria-label="Period">${Object.keys(names).map(k => `<button data-p="${k}" aria-pressed="${state.period === k}">${names[k]}</button>`).join('')}</div>
+        <div class="seg" role="group" aria-label="Location">${locBtn('', 'All')}${locBtn('RR', 'Round Rock')}${locBtn('SA', 'San Antonio')}</div>
+      </div>
+      <div class="muted small" style="margin-top:-6px">${esc(names[state.period])}: ${esc(label(P.a, P.b))}</div>
+      <section class="kpis">
+        <a class="card kpi" href="${txHref}" style="color:inherit;text-decoration:none"><div class="lbl">Sales</div><div class="num">${money(cur.r)}</div>${deltaHtml(cur.r, prev.r, P.vs)}</a>
+        <a class="card kpi" href="${txHref}" style="color:inherit;text-decoration:none"><div class="lbl">Orders</div><div class="num">${int(cur.o)}</div>${deltaHtml(cur.o, prev.o, P.vs)}</a>
+        <div class="card kpi"><div class="lbl">Items sold</div><div class="num">${int(cur.u)}</div>${deltaHtml(cur.u, prev.u, P.vs)}</div>
+        <div class="card kpi"><div class="lbl">Avg order</div><div class="num">${cur.o ? money(cur.r / cur.o) : '—'}</div><span class="delta muted">sales ÷ orders</span></div>
+        <div class="card kpi"><div class="lbl">Sales tax</div><div class="num">${money(pr.t.tax)}</div><span class="delta muted">8.25%, by product tax type</span></div>
+        <div class="card kpi"><div class="lbl">Est. card fees</div><div class="num">${money(fees(cur))}</div><span class="delta muted">5.95% + $0.05 per order</span></div>
+        <div class="card kpi"><div class="lbl">Est. profit</div><div class="num">${money(pr.t.profit)}</div>${deltaHtml(pr.t.profit, prp.t.profit, P.vs)}<div class="delta muted">${pct(pr.t.profit, pr.t.r - pr.t.tax)} of sales after tax · before haha's monthly fee</div></div>
+      </section>
+      <section class="card">
+        <div class="head"><h2>By machine</h2><a class="small" href="#/total">Business total by day ›</a></div>
+        <div class="scroll"><table><thead><tr><th>Machine</th><th>Sales</th><th>Orders</th><th>Items</th><th>Avg order</th><th>vs ${esc(P.vs)}</th></tr></thead><tbody>${mt}</tbody></table></div>
+      </section>
+      <section class="card">
+        <div class="head"><h2>Daily sales, last 30 days</h2>${legend}</div>
+        ${barChart(lastDays(30), ids)}
+      </section>
+      <section class="card">
+        <div class="head"><h2>Profit by product</h2><button class="link small" id="allp">${state.allProfit ? 'Show top 15' : 'Show all ' + profRows.length}</button></div>
+        ${profTable}
+        <p class="small muted" style="margin:8px 0 0">Profit = what customers paid, minus sales tax for each product's tax type, minus haha's card fee (5.95% + $0.05 per order), minus the product cost in haha. Before haha's $40 per machine monthly fee.</p>
+      </section>
+      <section class="grid2">
+        <div class="card"><div class="head"><h2>Top 10 sellers</h2><div class="seg"><button data-s="units" aria-pressed="${state.sellers === 'units'}">Units</button><button data-s="sales" aria-pressed="${state.sellers === 'sales'}">Dollars</button></div></div>${sellTable(topList)}</div>
+        <div class="card"><div class="head"><h2>Bottom 10 (in machines now)</h2></div>${sellTable(botList)}</div>
+      </section>
+      <section class="card">
+        <div class="head"><h2>Latest transactions</h2><a class="small" href="${txHref}">All transactions ›</a></div>
+        ${txTable(lt)}
+      </section>
+      <p class="muted small">View only. Sales are what customers paid, tax included, minus refunds.</p>`;
+    app.querySelectorAll('[data-p]').forEach(b => b.onclick = () => { state.period = b.dataset.p; save(); home(); });
+    app.querySelectorAll('[data-loc]').forEach(b => b.onclick = () => { state.loc = b.dataset.loc; save(); home(); });
+    app.querySelectorAll('[data-s]').forEach(b => b.onclick = () => { state.sellers = b.dataset.s; save(); home(); });
+    document.getElementById('allp').onclick = () => { state.allProfit = !state.allProfit; save(); home(); };
+  }
+
+  // ---------- Business total by day ----------
+  function total() {
+    const n = state.totalDays;
+    const days = lastDays(n);
+    const rows = days.slice().reverse().map(d => {
+      const day = agg.days[d] || { m: {} };
+      const v = id => (day.m[id] || {}).r || 0;
+      const o = Object.values(day.m).reduce((a, x) => a + x.o, 0), u = Object.values(day.m).reduce((a, x) => a + x.u, 0);
+      const rr = v('B101219') + v('B111755'), sa = v('B101231') + v('B111750');
+      return { d, rr, sa, t: rr + sa, o, u, cells: M.map(m => v(m.id)) };
+    });
+    const tot = rows.reduce((a, r) => ({ rr: a.rr + r.rr, sa: a.sa + r.sa, t: a.t + r.t, o: a.o + r.o, u: a.u + r.u }), { rr: 0, sa: 0, t: 0, o: 0, u: 0 });
+    const best = rows.reduce((a, r) => r.t > a.t ? r : a, rows[0]);
+    app.innerHTML = header('Business total') + `
+      <div class="head" style="margin:0"><h2 style="margin:0;font-size:18px">Business total, all 4 machines</h2>
+        <div class="seg">${[30, 60, 90].map(k => `<button data-n="${k}" aria-pressed="${n === k}">${k} days</button>`).join('')}</div></div>
+      <section class="kpis">
+        <div class="card kpi"><div class="lbl">Sales, ${n} days</div><div class="num">${money(tot.t)}</div><span class="delta muted">RR ${money(tot.rr)} · SA ${money(tot.sa)}</span></div>
+        <div class="card kpi"><div class="lbl">Per day</div><div class="num">${money(tot.t / n)}</div><span class="delta muted">${int(tot.o / n)} orders a day</span></div>
+        <div class="card kpi"><div class="lbl">Best day</div><div class="num">${money(best.t)}</div><span class="delta muted">${esc(fmtDay(best.d, {weekday:'short'}))}</span></div>
+        <div class="card kpi"><div class="lbl">Est. card fees</div><div class="num">${money(tot.t * 0.0595 + tot.o * 0.05)}</div><span class="delta muted">plus $160 a month haha service fee (4 × $40)</span></div>
+      </section>
+      <section class="card"><div class="head"><h2>Daily sales</h2>${legend}</div>${barChart(days)}</section>
+      <section class="card"><div class="scroll"><table>
+        <thead><tr><th>Day</th>${M.map(m => `<th>${esc(m.name)}</th>`).join('')}<th>Total</th><th>Orders</th><th>Items</th></tr></thead>
+        <tbody><tr class="total"><td>${n}-day total</td>${M.map((m, i) => `<td>${money(rows.reduce((a, r) => a + r.cells[i], 0))}</td>`).join('')}<td>${money(tot.t)}</td><td>${int(tot.o)}</td><td>${int(tot.u)}</td></tr>
+        ${rows.map(r => `<tr><td><a href="#/tx?from=${r.d}&to=${r.d}">${esc(fmtDay(r.d, {weekday:'short'}))}</a></td>${r.cells.map(c => `<td>${c ? money(c) : '<span class="muted">—</span>'}</td>`).join('')}<td><b>${money(r.t)}</b></td><td>${int(r.o)}</td><td>${int(r.u)}</td></tr>`).join('')}</tbody>
+      </table></div></section>`;
+    app.querySelectorAll('[data-n]').forEach(b => b.onclick = () => { state.totalDays = Number(b.dataset.n); save(); total(); });
+  }
+
+  // ---------- Transactions ----------
+  async function tx(q) {
+    const from = q.get('from') || add(today, -6), to = q.get('to') || today;
+    const m = q.get('m') || '', loc = q.get('loc') || '', p = q.get('p') || '';
+    const opts = M.map(x => `<option value="${x.id}" ${m === x.id ? 'selected' : ''}>${esc(x.name)}</option>`).join('');
+    const prodOpts = Object.entries(snap.products).sort((a, b) => pName(a[0]).localeCompare(pName(b[0]))).map(([id]) => `<option value="${esc(id)}" ${p === id ? 'selected' : ''}>${esc(pName(id))}</option>`).join('');
+    app.innerHTML = header('Transactions') + `
+      <section class="card"><form class="filters" id="f">
+        <label>From<input type="date" name="from" value="${from}" max="${today}"></label>
+        <label>To<input type="date" name="to" value="${to}" max="${today}"></label>
+        <label>Machine<select name="m"><option value="">All machines</option>${loc ? '' : ''}${opts}</select></label>
+        <label>Product<select name="p"><option value="">All products</option>${prodOpts}</select></label>
+        <button class="btn" type="submit">Show</button>
+      </form><div class="small muted" style="margin-top:8px">Up to 93 days at a time.</div></section>
+      <section class="card" id="res"><p class="muted">Loading…</p></section>`;
+    document.getElementById('f').onsubmit = e => { e.preventDefault(); const f = new FormData(e.target); const u = new URLSearchParams(); for (const [k, v] of f) if (v) u.set(k, v); location.hash = '#/tx?' + u.toString(); };
+    let list;
+    try { list = await get(`range&from=${from}&to=${to}${m ? '&m=' + m : ''}${p ? '&p=' + encodeURIComponent(p) : ''}`); }
+    catch (e) { document.getElementById('res').innerHTML = `<p class="warn">${esc(e.message)}</p>`; return; }
+    if (loc && !m) list = list.filter(x => LOC[loc].includes(x.m));
+    const sumPaid = list.reduce((a, x) => a + x.paid, 0);
+    let units = 0, prodPaid = 0;
+    if (p) for (const x of list) for (const i of x.items) if (i.p === p && !i.refund) { units += i.q; prodPaid += Number(i.paid || 0); }
+    document.getElementById('res').innerHTML = `<div class="head"><h2>${int(list.length)} sales · ${money(sumPaid)}${p ? ` · ${esc(pName(p))}: ${int(units)} sold, ${money(prodPaid)}` : ''}</h2><span class="small muted">${esc(label(from, to))}${loc && !m ? ' · ' + (loc === 'RR' ? 'Round Rock' : 'San Antonio') : ''}</span></div>${txTable(list.slice(0, 500))}${list.length > 500 ? '<p class="small muted">Showing the latest 500. Narrow the dates to see the rest.</p>' : ''}`;
+  }
+
+  // ---------- Product ----------
+  function product(id) {
+    const p = snap.products[id] || { name: id };
+    const days = lastDays(90);
+    const byMachine = M.map(m => { let u = 0, r = 0; for (const d of days) { const v = ((agg.days[d] || {}).p || {})[id]; if (v && v[m.id]) { u += v[m.id].u; r += v[m.id].r; } } return { m, u, r, stock: ((snap.stock || {})[m.id] || {})[id] || 0, cap: ((snap.capacity || {})[m.id] || {})[id] || 0, lp: ((agg.lastPrice || {})[id] || {})[m.id] }; });
+    const u90 = byMachine.reduce((a, x) => a + x.u, 0), r90 = byMachine.reduce((a, x) => a + x.r, 0);
+    const pp = profitRange(add(today, -89), today).byP[id] || { u: 0, r: 0, tax: 0, fee: 0, cost: 0, profit: 0 };
+    const weeks = []; for (let w = 12; w >= 0; w--) { const end = add(today, -7 * w), start = add(end, -6); let u = 0; for (let d = start; d <= end; d = add(d, 1)) { const v = ((agg.days[d] || {}).p || {})[id]; if (v) for (const x of Object.values(v)) u += x.u; } weeks.push({ start, end, u }); }
+    const maxU = Math.max(1, ...weeks.map(w => w.u));
+    const W = 720, H = 150, L = 30, B = 22, T = 8, bw = (W - L - 8) / weeks.length;
+    let g = ''; const top = Math.ceil(maxU / 4) * 4 || 4; const y = v => T + (H - T - B) * (1 - v / top);
+    for (let i = 0; i <= 4; i++) { const v = top / 4 * i; g += `<line x1="${L}" x2="${W - 4}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${L - 6}" y="${y(v) + 4}" text-anchor="end">${v}</text>`; }
+    weeks.forEach((w, i) => { const x = L + i * bw + 3; g += `<g><title>Week of ${fmtDay(w.start)}: ${w.u} sold</title><rect x="${x}" y="${y(w.u)}" width="${bw - 6}" height="${y(0) - y(w.u)}" fill="var(--bar)" rx="2"/></g>`; if (i % 3 === 0 || i === weeks.length - 1) g += `<text x="${x + (bw - 6) / 2}" y="${H - 5}" text-anchor="middle">${new Date(w.start + 'T12:00:00Z').toLocaleDateString('en-US', {month:'numeric', day:'numeric', timeZone:'UTC'})}</text>`; });
+    const pr = byMachine.filter(x => x.lp).map(x => x.lp.price);
+    const priceGap = pr.length > 1 && Math.max(...pr) !== Math.min(...pr);
+    app.innerHTML = header('Product') + `
+      <h2 style="font-size:18px;margin:0">${esc(pName(id))}</h2>
+      <div class="muted small" style="margin-top:-8px">${p.barcode ? 'Barcode ' + esc(p.barcode) + ' · ' : ''}haha cost ${p.cost != null ? money(Number(p.cost)) : '—'} · haha base price ${p.price != null ? money(Number(p.price)) : '—'}</div>
+      <section class="kpis">
+        <div class="card kpi"><div class="lbl">Sold, 90 days</div><div class="num">${int(u90)}</div><span class="delta muted">${(u90 / 90 * 7).toFixed(1)} a week</span></div>
+        <div class="card kpi"><div class="lbl">Sales, 90 days</div><div class="num">${money(r90)}</div><span class="delta muted">tax included</span></div>
+        <div class="card kpi"><div class="lbl">Est. profit, 90 days</div><div class="num ${pp.profit < 0 ? 'warn' : ''}">${money(pp.profit)}</div><span class="delta muted">${pp.u ? money(pp.profit / pp.u) + ' per item · ' : ''}${pct(pp.profit, pp.r - pp.tax)} margin${PENDING.test(pName(id)) ? ' · cost pending' : ''}</span></div>
+        <div class="card kpi"><div class="lbl">Tax type</div><div class="num" style="font-size:20px">${({exempt:'Exempt', food:'Food, 50% taxed', full:'Fully taxed'})[p.tax || 'full']}</div><span class="delta muted">${p.taxCheck ? 'label still to check' : 'Texas vending rule'}</span></div>
+        <div class="card kpi"><div class="lbl">In machines now</div><div class="num">${int(byMachine.reduce((a, x) => a + x.stock, 0))}</div><span class="delta muted">storage not shown yet</span></div>
+      </section>
+      <section class="card"><div class="head"><h2>Sold per week, last 13 weeks</h2></div><svg viewBox="0 0 ${W} ${H}" width="100%" style="max-height:220px" role="img" aria-label="Units sold per week">${g}</svg></section>
+      <section class="card"><div class="head"><h2>By machine</h2>${priceGap ? '<span class="tag warn">Price differs between machines</span>' : ''}</div><div class="scroll"><table>
+        <thead><tr><th>Machine</th><th>Stock now</th><th>Slot capacity</th><th>Sold, 90 days</th><th>Sales, 90 days</th><th>Price at last sale</th><th>Last sale</th></tr></thead>
+        <tbody>${byMachine.map(x => `<tr><td>${mLink(x.m.id)}</td><td>${x.stock || (x.cap ? 0 : '<span class="muted">—</span>')}</td><td>${x.cap || '<span class="muted">—</span>'}</td><td>${int(x.u)}</td><td>${money(x.r)}</td><td>${x.lp ? money(x.lp.price) : '<span class="muted">—</span>'}</td><td>${x.lp ? esc(fmtTime(x.lp.at)) : '<span class="muted">—</span>'}</td></tr>`).join('')}</tbody>
+      </table></div></section>
+      <p><a href="#/tx?from=${add(today, -89)}&to=${today}&p=${encodeURIComponent(id)}">See this product's transactions, last 90 days ›</a></p>`;
+  }
+
+  // ---------- Machine ----------
+  function machine(id) {
+    const m = M.find(x => x.id === id) || { id, name: id };
+    const stock = (snap.stock || {})[id] || {}, cap = (snap.capacity || {})[id] || {};
+    const days30 = lastDays(30);
+    const sold = {}; for (const d of days30) for (const [pid, byM] of Object.entries(((agg.days[d] || {}).p) || {})) if (byM[id]) sold[pid] = (sold[pid] || 0) + byM[id].u;
+    const pids = [...new Set([...Object.keys(stock), ...Object.keys(cap)])];
+    const rows = pids.map(pid => { const q = stock[pid] || 0, c = cap[pid] || 0, s30 = sold[pid] || 0; const perDay = s30 / 30; return { pid, q, c, s30, daysLeft: perDay > 0 ? q / perDay : null }; })
+      .sort((a, b) => (a.daysLeft ?? 9999) - (b.daysLeft ?? 9999) || a.q - b.q);
+    const totStock = rows.reduce((a, r) => a + r.q, 0), totCap = rows.reduce((a, r) => a + r.c, 0);
+    const t30 = sumRange(add(today, -29), today, [id]);
+    app.innerHTML = header('Machine') + `
+      <h2 style="font-size:18px;margin:0">${esc(m.name)} <span class="muted small">${esc(id)}</span></h2>
+      <section class="kpis">
+        <div class="card kpi"><div class="lbl">Items in machine</div><div class="num">${int(totStock)}</div><span class="delta muted">${totCap ? 'of ' + int(totCap) + ' slot capacity set' : 'slot capacity not set'}</span></div>
+        <div class="card kpi"><div class="lbl">Sales, 30 days</div><div class="num">${money(t30.r)}</div><span class="delta muted">${int(t30.o)} orders · ${int(t30.u)} items</span></div>
+        <div class="card kpi"><div class="lbl">Products in machine</div><div class="num">${int(rows.filter(r => r.q > 0).length)}</div><span class="delta muted">${int(rows.filter(r => r.q === 0).length)} empty slots</span></div>
+      </section>
+      <section class="card"><div class="head"><h2>Daily sales, last 30 days</h2></div>${barChart(days30, [id])}</section>
+      <section class="card"><div class="head"><h2>Stock by product</h2><span class="small muted">Sorted by days of stock left at the last 30 days' pace</span></div><div class="scroll"><table>
+        <thead><tr><th>Product</th><th>Stock now</th><th>Slot capacity</th><th>Sold, 30 days</th><th>Days left</th></tr></thead>
+        <tbody>${rows.map(r => `<tr><td>${pLink(r.pid)}</td><td>${r.q === 0 ? '<span class="warn">0</span>' : int(r.q)}</td><td>${r.c || '<span class="muted">—</span>'}</td><td>${int(r.s30)}</td><td>${r.q === 0 ? '<span class="warn">empty</span>' : r.daysLeft == null ? '<span class="muted">no sales</span>' : (r.daysLeft < 7 ? '<span class="warn">' + Math.round(r.daysLeft) + '</span>' : Math.round(r.daysLeft))}</td></tr>`).join('')}</tbody>
+      </table></div></section>
+      <p><a href="#/tx?from=${add(today, -6)}&to=${today}&m=${id}">See this machine's transactions ›</a></p>`;
+  }
+
+  async function route() {
+    const h = location.hash.replace(/^#/, '') || '/';
+    const [path, qs] = h.split('?');
+    const q = new URLSearchParams(qs || '');
+    window.scrollTo(0, 0);
+    const view = path === '/total' ? total : path === '/tx' ? () => tx(q) : path.startsWith('/product/') ? () => product(decodeURIComponent(path.slice(9))) : path.startsWith('/machine/') ? () => machine(path.slice(9)) : home;
+    const done = view();
+    const addMom = () => { if (!document.getElementById('mom')) app.insertAdjacentHTML('beforeend', monthChart()); };
+    addMom();
+    if (done && done.then) done.then(addMom);
+  }
+  // Views that re-render themselves (period, location, day-range buttons) keep the month chart at the bottom
+  new MutationObserver(() => { if (!document.getElementById('mom') && app.querySelector('header')) app.insertAdjacentHTML('beforeend', monthChart()); }).observe(app, { childList: true });
+  window.addEventListener('hashchange', route);
+  route();
+})();
+</script>
+</body>
+</html>
