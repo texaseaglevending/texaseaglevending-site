@@ -2,6 +2,7 @@
 // GET /api/dash-data?part=status|snapshot|sales&day=YYYY-MM-DD
 import { storeFor } from "../lib/refresh.mjs";
 import { adminFrom, deny } from "../lib/session.mjs";
+import { getToken, getAll, getOne, MACHINES } from "../lib/haha.mjs";
 
 export default async (req, context) => {
   if (!adminFrom(req)) return deny(401, "sign in required");
@@ -42,6 +43,28 @@ export default async (req, context) => {
       data.push(s);
     }
     data.sort((a, b) => (a.at < b.at ? 1 : -1));
+  }
+  else if (part === "online") {
+    // Live, read-only check of each machine's connection to haha.
+    const token = await getToken();
+    data = await Promise.all(MACHINES.map(async (m) => {
+      try { const d = await getOne("/open/api/v1/markets/" + m.id + "/online-status", token); return { id: m.id, online: !!d.isOnline }; }
+      catch { return { id: m.id, online: null }; }
+    }));
+  }
+  else if (part === "restocks") {
+    // Live, read-only: restock / adjust / dispose records with product-level changes.
+    const from = q.get("from"), to = q.get("to");
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(from || "") || !/^\d{4}-\d{2}-\d{2}$/.test(to || "")) return deny(400, "from and to must be YYYY-MM-DD");
+    const token = await getToken();
+    const recs = (await getAll("/open/api/v1/restock/records", token, { start_time: from, end_time: to }, 10)).slice(0, 60);
+    data = await Promise.all(recs.map(async (r) => {
+      let changes = null;
+      if (r.restockOpLogId) {
+        try { const d = await getOne("/open/api/v1/markets/" + r.marketId + "/restock/op-logs/" + r.restockOpLogId, token); changes = d.productChanges || []; } catch { changes = null; }
+      }
+      return { at: r.createdAt, m: r.marketId, type: r.operationType, label: r.operationTypeLabel, by: r.operatorUserName || null, logId: r.restockOpLogId || null, changes };
+    }));
   }
   else if (part === "days") data = (await store.list({ prefix: "sales/" })).blobs.map((b) => b.key.slice(6)).sort();
   else return Response.json({ ok: false, error: "unknown part" }, { status: 400 });
