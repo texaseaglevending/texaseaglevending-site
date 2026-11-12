@@ -74,12 +74,22 @@ td.l,th.l{text-align:left}
 
   const get = q => fetch('/api/dash-data?part=' + q, {cache:'no-store'}).then(r => r.json()).then(j => { if (!j.ok) throw new Error(j.error || 'load failed'); return j.data; });
   let snap, agg, status, latest;
-  try { [snap, agg, status, latest] = await Promise.all([get('snapshot'), get('agg'), get('status'), get('latest&n=20')]); }
+  const loadAll = async () => { [snap, agg, status, latest] = await Promise.all([get('snapshot'), get('agg'), get('status'), get('latest&n=20')]); };
+  try { await loadAll(); }
   catch (e) { app.innerHTML = '<div class="center card"><p>Could not load data. Try reloading.</p></div>'; return; }
+  // Pull fresh data from haha when the page opens and the data is more than 10 minutes old (read-only).
+  let updating = false;
+  async function refreshNow(force) {
+    const age = status && status.finishedAt ? Date.now() - Date.parse(status.finishedAt) : Infinity;
+    if (updating || (!force && age < 10 * 60000)) return;
+    updating = true; route({ keep: true });
+    try { const r = await fetch('/api/dash-refresh-now', {cache:'no-store'}).then(r => r.json()); if (r.ok) await loadAll(); } catch (e) {}
+    updating = false; route({ keep: true });
+  }
   if (!snap || !agg) { app.innerHTML = '<div class="center card"><p>No data yet. The first refresh has not run.</p></div>'; return; }
 
   let online = null;
-  get('online').then(d => { online = d; route(); }).catch(() => { online = []; });
+  get('online').then(d => { online = d; route({ keep: true }); }).catch(() => { online = []; });
   const M = snap.machines;
   const LOC = { RR: ['B101219', 'B111755'], SA: ['B101231', 'B111750'] };
   const mName = id => (M.find(m => m.id === id) || {}).name || id;
@@ -150,10 +160,10 @@ td.l,th.l{text-align:left}
   try { state = Object.assign(state, JSON.parse(localStorage.getItem('tev-dash') || '{}')); } catch (e) {}
   const save = () => { try { localStorage.setItem('tev-dash', JSON.stringify(state)); } catch (e) {} };
 
-  const when = status && status.finishedAt ? new Date(status.finishedAt).toLocaleString('en-US', {timeZone:TZ, month:'short', day:'numeric', hour:'numeric', minute:'2-digit'}) : 'not yet';
+  const whenOf = () => status && status.finishedAt ? new Date(status.finishedAt).toLocaleString('en-US', {timeZone:TZ, month:'short', day:'numeric', hour:'numeric', minute:'2-digit'}) : 'not yet';
   const header = crumbs => `
     <header>
-      <div><h1><a href="#/" style="color:inherit">Texas Eagle Vending</a></h1><div class="muted small">Data as of ${esc(when)}${status && !status.ok ? ' <span class="warn">— last refresh failed</span>' : ''} · updates 6 AM, 12 PM, 6 PM, 12 AM</div></div>
+      <div><h1><a href="#/" style="color:inherit">Texas Eagle Vending</a></h1><div class="muted small">${updating ? 'Updating from haha…' : 'Data as of ' + esc(whenOf())}${status && !status.ok ? ' <span class="warn">— last refresh failed</span>' : ''} · ${updating ? '' : '<button class="link small" id="refreshBtn">Refresh now</button> · '}updates when opened if older than 10 min</div></div>
       <div style="display:flex;gap:12px;align-items:center"><span class="muted small">${esc(s.email)}</span><form method="post" action="/api/auth/logout" style="margin:0"><button class="link">Sign out</button></form></div>
     </header>
     <div class="status muted">${online ? online.map(o => `<span title="${o.online === false ? 'Not connected to haha right now' : o.online ? 'Connected to haha' : 'Status unknown'}"><span class="dot" style="background:${o.online === false ? 'var(--bad)' : o.online ? 'var(--good)' : 'var(--line)'}"></span>${mLink(o.id)} ${o.online === false ? '<b class="warn">offline</b>' : o.online ? 'online' : '?'}</span>`).join('') : 'Checking machines…'} <a href="#/restocks">Restocks ›</a></div>
@@ -450,13 +460,16 @@ td.l,th.l{text-align:left}
     }).join('') : '<div class="card"><p class="muted">No restocks or adjustments in these dates.</p></div>';
   }
 
-  async function route() {
+  async function route(opts) {
     const h = location.hash.replace(/^#/, '') || '/';
     const [path, qs] = h.split('?');
     const q = new URLSearchParams(qs || '');
-    window.scrollTo(0, 0);
+    const y = window.scrollY;
+    if (!(opts && opts.keep)) window.scrollTo(0, 0);
     const view = path === '/total' ? total : path === '/tx' ? () => tx(q) : path === '/restocks' ? () => restocks(q) : path.startsWith('/product/') ? () => product(decodeURIComponent(path.slice(9))) : path.startsWith('/machine/') ? () => machine(path.slice(9)) : home;
     const done = view();
+    const rb = document.getElementById('refreshBtn'); if (rb) rb.onclick = () => refreshNow(true);
+    if (opts && opts.keep) { if (done && done.then) done.then(() => window.scrollTo(0, y)); else window.scrollTo(0, y); }
     const addMom = () => { if (!document.getElementById('mom')) app.insertAdjacentHTML('beforeend', monthChart()); };
     addMom();
     if (done && done.then) done.then(addMom);
@@ -465,6 +478,8 @@ td.l,th.l{text-align:left}
   new MutationObserver(() => { if (!document.getElementById('mom') && app.querySelector('header')) app.insertAdjacentHTML('beforeend', monthChart()); }).observe(app, { childList: true });
   window.addEventListener('hashchange', route);
   route();
+  refreshNow(false);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') refreshNow(false); });
 })();
 </script>
 </body>

@@ -15,6 +15,9 @@ export default async (req, context) => {
     const r = await pullSales(storeFor(context), await getToken(), month + "-01", month + "-" + String(last).padStart(2, "0"));
     return Response.json({ ok: true, month, ...r });
   }
+  // Skip if data was refreshed in the last 2 minutes (repeat taps, several open tabs).
+  const last = await storeFor(context).get("status", { type: "json" }).catch(() => null);
+  if (last && last.ok && Date.now() - Date.parse(last.finishedAt) < 120000) return Response.json({ ...last, skipped: true });
   return Response.json(await refresh(context, { salesDays: 2 }));
 };
 
