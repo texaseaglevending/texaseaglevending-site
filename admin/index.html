@@ -162,6 +162,44 @@ td.l,th.l{text-align:left}
     list.length ? list.map(x => `<tr><td>${esc(fmtTime(x.at))}</td><td>${mLink(x.m)}</td><td>${(x.items || []).map(i => (i.q > 1 ? i.q + '× ' : '') + pLink(i.p, i.n) + ' <span class="muted">' + money(Number(i.price)) + '</span>' + (i.refund ? ' <span class="tag">refunded</span>' : '')).join(', ')}</td><td>${money(x.paid)}${x.refund ? ' <span class="tag">refunded</span>' : ''}</td></tr>`).join('') : '<tr><td colspan="4" class="muted">No sales match</td></tr>'
   }</tbody></table></div>`;
 
+
+  // Month-over-month sales: Round Rock, San Antonio and all machines. Shown at the bottom of every view.
+  function monthChart() {
+    const months = [...new Set(Object.keys(agg.days).filter(d => d <= today).map(d => d.slice(0, 7)))].sort();
+    const rows = months.map(mo => { let rr = 0, sa = 0; for (const [d, day] of Object.entries(agg.days)) { if (!d.startsWith(mo) || d > today) continue; for (const [mid, v] of Object.entries(day.m)) { if (LOC.RR.includes(mid)) rr += v.r; else sa += v.r; } } return { mo, rr, sa, all: rr + sa }; })
+      .filter((r, i, a) => r.all > 0 || i > a.findIndex(x => x.all > 0));
+    if (!rows.length) return '';
+    const W = 720, H = 240, L = 52, R = 70, B = 28, T = 12;
+    const max = Math.max(...rows.map(r => r.all));
+    const step = Math.ceil(max / 4 / 250) * 250 || 250, top = step * 4;
+    const x = i => L + (rows.length === 1 ? (W - L - R) / 2 : i * (W - L - R) / (rows.length - 1));
+    const y = v => T + (H - T - B) * (1 - v / top);
+    const curMo = today.slice(0, 7);
+    const series = [['all', 'All', 'var(--ink)', 2.5], ['rr', 'Round Rock', 'var(--bar)', 2], ['sa', 'San Antonio', 'var(--bar2)', 2]];
+    const moLbl = mo => new Date(mo + '-15T12:00:00Z').toLocaleDateString('en-US', {month:'short', timeZone:'UTC'}) + (mo.endsWith('-01') || mo === rows[0].mo ? " '" + mo.slice(2, 4) : '');
+    let g = '';
+    for (let i = 0; i <= 4; i++) { const v = step * i; g += `<line x1="${L}" x2="${W - R + 8}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${L - 6}" y="${y(v) + 4}" text-anchor="end">$${v.toLocaleString('en-US')}</text>`; }
+    rows.forEach((r, i) => { g += `<text x="${x(i)}" y="${H - 8}" text-anchor="middle">${moLbl(r.mo)}</text>`; });
+    for (const [k, name, color, sw] of series) {
+      const full = rows.filter(r => r.mo !== curMo), pts = full.map(r => `${x(rows.indexOf(r))},${y(r[k])}`).join(' ');
+      g += `<polyline points="${pts}" fill="none" stroke="${color}" stroke-width="${sw}" stroke-linejoin="round"/>`;
+      const last = rows[rows.length - 1];
+      if (last.mo === curMo && rows.length > 1) { const prev = rows[rows.length - 2]; g += `<line x1="${x(rows.length - 2)}" y1="${y(prev[k])}" x2="${x(rows.length - 1)}" y2="${y(last[k])}" stroke="${color}" stroke-width="${sw}" stroke-dasharray="4 4"/>`; }
+      rows.forEach((r, i) => { const partial = r.mo === curMo; g += `<circle cx="${x(i)}" cy="${y(r[k])}" r="3.5" fill="${partial ? 'var(--card)' : color}" stroke="${color}" stroke-width="2"><title>${moLbl(r.mo)}${partial ? ' (to date)' : ''} · ${name}: ${money(r[k])}</title></circle>`; });
+      const endY = y(rows[rows.length - 1][k]);
+      g += `<text x="${x(rows.length - 1) + 10}" y="${endY + 4}" style="fill:${color};font-weight:600">${name === 'All' ? 'All' : name === 'Round Rock' ? 'RR' : 'SA'}</text>`;
+    }
+    const last = rows[rows.length - 1];
+    return `<section class="card" id="mom"><div class="head"><h2>Sales by month</h2><span class="small muted"><b style="color:var(--ink)">—</b> All &nbsp; <b style="color:var(--bar)">—</b> Round Rock &nbsp; <b style="color:var(--bar2)">—</b> San Antonio${last.mo === curMo ? ' &nbsp;· open dot = month to date' : ''}</span></div>
+      <svg viewBox="0 0 ${W} ${H}" width="100%" style="max-height:300px" role="img" aria-label="Sales by month for Round Rock, San Antonio and all machines">${g}</svg>
+      <div class="scroll"><table class="small"><thead><tr><th>Month</th>${rows.map(r => `<th>${moLbl(r.mo)}</th>`).join('')}</tr></thead><tbody>
+        <tr><td>Round Rock</td>${rows.map(r => `<td>${money0(r.rr)}</td>`).join('')}</tr>
+        <tr><td>San Antonio</td>${rows.map(r => `<td>${money0(r.sa)}</td>`).join('')}</tr>
+        <tr class="total"><td>All</td>${rows.map(r => `<td>${money0(r.all)}</td>`).join('')}</tr>
+      </tbody></table></div></section>`;
+  }
+  const money0 = n => '$' + Math.round(n || 0).toLocaleString('en-US');
+
   // ---------- Home ----------
   function home() {
     const P = periods[state.period]();
@@ -336,12 +374,14 @@ td.l,th.l{text-align:left}
     const [path, qs] = h.split('?');
     const q = new URLSearchParams(qs || '');
     window.scrollTo(0, 0);
-    if (path === '/total') return total();
-    if (path === '/tx') return tx(q);
-    if (path.startsWith('/product/')) return product(decodeURIComponent(path.slice(9)));
-    if (path.startsWith('/machine/')) return machine(path.slice(9));
-    return home();
+    const view = path === '/total' ? total : path === '/tx' ? () => tx(q) : path.startsWith('/product/') ? () => product(decodeURIComponent(path.slice(9))) : path.startsWith('/machine/') ? () => machine(path.slice(9)) : home;
+    const done = view();
+    const addMom = () => { if (!document.getElementById('mom')) app.insertAdjacentHTML('beforeend', monthChart()); };
+    addMom();
+    if (done && done.then) done.then(addMom);
   }
+  // Views that re-render themselves (period, location, day-range buttons) keep the month chart at the bottom
+  new MutationObserver(() => { if (!document.getElementById('mom') && app.querySelector('header')) app.insertAdjacentHTML('beforeend', monthChart()); }).observe(app, { childList: true });
   window.addEventListener('hashchange', route);
   route();
 })();
