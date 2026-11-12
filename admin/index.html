@@ -6,8 +6,8 @@
 <meta name="robots" content="noindex,nofollow">
 <title>TEV Admin</title>
 <style>
-:root{--bg:#f4f5f7;--card:#fff;--ink:#16181d;--muted:#5d6472;--line:#e1e4ea;--navy:#12284c;--accent:#1f5fbf;--good:#1a7f45;--bad:#b42318;--soft:#eef1f6;--bar:#1f5fbf;--bar2:#9db8e3}
-@media (prefers-color-scheme:dark){:root{--bg:#111316;--card:#1a1d22;--ink:#eceef2;--muted:#a3aab6;--line:#2c3139;--navy:#86a6d6;--accent:#7fa7e6;--good:#5cc98b;--bad:#f2877d;--soft:#22262d;--bar:#7fa7e6;--bar2:#4f6da3}}
+:root{--bg:#f4f5f7;--card:#fff;--ink:#16181d;--muted:#5d6472;--line:#e1e4ea;--navy:#12284c;--accent:#1f5fbf;--good:#1a7f45;--bad:#b42318;--soft:#eef1f6;--bar:#cc5500;--bar2:#5aa9e6;--all:#2a2e35}
+@media (prefers-color-scheme:dark){:root{--bg:#111316;--card:#1a1d22;--ink:#eceef2;--muted:#a3aab6;--line:#2c3139;--navy:#86a6d6;--accent:#7fa7e6;--good:#5cc98b;--bad:#f2877d;--soft:#22262d;--bar:#e07a2e;--bar2:#8ecbf5;--all:#ffffff}}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 .wrap{max-width:1180px;margin:0 auto;padding:20px 16px 48px;display:flex;flex-direction:column;gap:16px}
@@ -175,7 +175,7 @@ td.l,th.l{text-align:left}
     const x = i => L + (rows.length === 1 ? (W - L - R) / 2 : i * (W - L - R) / (rows.length - 1));
     const y = v => T + (H - T - B) * (1 - v / top);
     const curMo = today.slice(0, 7);
-    const series = [['all', 'All', 'var(--ink)', 2.5], ['rr', 'Round Rock', 'var(--bar)', 2], ['sa', 'San Antonio', 'var(--bar2)', 2]];
+    const series = [['all', 'All', 'var(--all)', 2.5], ['rr', 'Round Rock', 'var(--bar)', 2], ['sa', 'San Antonio', 'var(--bar2)', 2]];
     const moLbl = mo => new Date(mo + '-15T12:00:00Z').toLocaleDateString('en-US', {month:'short', timeZone:'UTC'}) + " '" + mo.slice(2, 4);
     let g = ''; const ends = [];
     for (let i = 0; i <= 4; i++) { const v = step * i; g += `<line x1="${L}" x2="${W - R + 8}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${L - 6}" y="${y(v) + 4}" text-anchor="end">$${v.toLocaleString('en-US')}</text>`; }
@@ -192,7 +192,7 @@ td.l,th.l{text-align:left}
     for (let i = 1; i < ends.length; i++) if (ends[i].y - ends[i - 1].y < 13) ends[i].y = ends[i - 1].y + 13;
     for (const e of ends) g += `<text x="${x(rows.length - 1) + 10}" y="${e.y + 4}" style="fill:${e.color};font-weight:600">${e.t}</text>`;
     const last = rows[rows.length - 1];
-    return `<section class="card" id="mom"><div class="head"><h2>Sales by month</h2><span class="small muted"><b style="color:var(--ink)">—</b> All &nbsp; <b style="color:var(--bar)">—</b> Round Rock &nbsp; <b style="color:var(--bar2)">—</b> San Antonio${last.mo === curMo ? ' &nbsp;· open dot = month to date' : ''}</span></div>
+    return `<section class="card" id="mom"><div class="head"><h2>Sales by month</h2><span class="small muted"><b style="color:var(--all)">—</b> All &nbsp; <b style="color:var(--bar)">—</b> Round Rock &nbsp; <b style="color:var(--bar2)">—</b> San Antonio${last.mo === curMo ? ' &nbsp;· open dot = month to date' : ''}</span></div>
       <svg viewBox="0 0 ${W} ${H}" width="100%" style="max-height:300px" role="img" aria-label="Sales by month for Round Rock, San Antonio and all machines">${g}</svg>
       <div class="scroll"><table class="small"><thead><tr><th>Month</th>${rows.map(r => `<th>${moLbl(r.mo)}</th>`).join('')}</tr></thead><tbody>
         <tr><td>Round Rock</td>${rows.map(r => `<td>${money0(r.rr)}</td>`).join('')}</tr>
