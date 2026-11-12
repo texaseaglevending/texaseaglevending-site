@@ -137,7 +137,9 @@ td.l,th.l{text-align:left}
     const vals = days.map(d => { const day = agg.days[d]; let rr = 0, sa = 0; if (day) for (const [mid, v] of Object.entries(day.m)) { if (ids && !ids.includes(mid)) continue; if (LOC.RR.includes(mid)) rr += v.r; else sa += v.r; } return { d, rr, sa }; });
     const max = Math.max(20, ...vals.map(v => v.rr + v.sa));
     const step = Math.ceil(max / 4 / 25) * 25 || 5, top = step * 4;
-    const W = 720, H = 190, L = 40, B = 22, T = 8, bw = (W - L - 8) / days.length;
+    const showDow = days.length <= 31;
+    const W = 720, H = showDow ? 204 : 190, L = 40, B = showDow ? 36 : 22, T = 8, bw = (W - L - 8) / days.length;
+    const DOW = ['Su', 'M', 'Tu', 'W', 'Th', 'F', 'Sa'];
     const y = v => T + (H - T - B) * (1 - v / top);
     const every = Math.max(1, Math.round(days.length / 6));
     let g = '';
@@ -145,7 +147,11 @@ td.l,th.l{text-align:left}
     vals.forEach((v, i) => {
       const x = L + i * bw + Math.min(2, bw * 0.15), w = Math.max(1, bw - Math.min(4, bw * 0.3));
       g += `<g><title>${fmtDay(v.d, {weekday:'short'})}: ${money(v.rr + v.sa)} (RR ${money(v.rr)}, SA ${money(v.sa)})</title><rect x="${x}" y="${y(v.rr)}" width="${w}" height="${y(0) - y(v.rr)}" fill="var(--bar)" rx="1.5"/><rect x="${x}" y="${y(v.rr + v.sa)}" width="${w}" height="${y(v.rr) - y(v.rr + v.sa)}" fill="var(--bar2)" rx="1.5"/></g>`;
-      if ((days.length - 1 - i) % every === 0) g += `<text x="${x + w / 2}" y="${H - 5}" text-anchor="middle">${new Date(v.d + 'T12:00:00Z').toLocaleDateString('en-US', {month:'numeric', day:'numeric', timeZone:'UTC'})}</text>`;
+      if (showDow) {
+        const wd = new Date(v.d + 'T12:00:00Z').getUTCDay();
+        g += `<text x="${x + w / 2}" y="${H - B + 14}" text-anchor="middle" style="${wd === 0 || wd === 6 ? 'font-weight:700' : ''}">${DOW[wd]}</text>`;
+        if (wd === 1 || i === 0) g += `<text x="${x + w / 2}" y="${H - 4}" text-anchor="middle">${new Date(v.d + 'T12:00:00Z').toLocaleDateString('en-US', {month:'numeric', day:'numeric', timeZone:'UTC'})}</text>`;
+      } else if ((days.length - 1 - i) % every === 0) g += `<text x="${x + w / 2}" y="${H - 5}" text-anchor="middle">${new Date(v.d + 'T12:00:00Z').toLocaleDateString('en-US', {month:'numeric', day:'numeric', timeZone:'UTC'})}</text>`;
     });
     return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-height:260px" role="img" aria-label="Daily sales">${g}</svg>`;
   }
