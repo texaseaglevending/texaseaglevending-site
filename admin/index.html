@@ -7,7 +7,7 @@
 <title>TEV Admin</title>
 <style>
 :root{--bg:#f4f5f7;--card:#fff;--ink:#16181d;--muted:#5d6472;--line:#e1e4ea;--navy:#12284c;--accent:#1f5fbf;--good:#1a7f45;--bad:#b42318;--soft:#eef1f6;--bar:#1f5fbf;--bar2:#9db8e3}
-@media (prefers-color-scheme:dark){:root{--bg:#111316;--card:#1a1d22;--ink:#eceef2;--muted:#a3aab6;--line:#2c3139;--navy:#86a6d6;--accent:#7fa7e6;--good:#5cc98b;--bad:#f2877d;--soft:#22262d;--bar:#7fa7e6;--bar2:#3c5683}}
+@media (prefers-color-scheme:dark){:root{--bg:#111316;--card:#1a1d22;--ink:#eceef2;--muted:#a3aab6;--line:#2c3139;--navy:#86a6d6;--accent:#7fa7e6;--good:#5cc98b;--bad:#f2877d;--soft:#22262d;--bar:#7fa7e6;--bar2:#4f6da3}}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 .wrap{max-width:1180px;margin:0 auto;padding:20px 16px 48px;display:flex;flex-direction:column;gap:16px}
@@ -177,7 +177,7 @@ td.l,th.l{text-align:left}
     const curMo = today.slice(0, 7);
     const series = [['all', 'All', 'var(--ink)', 2.5], ['rr', 'Round Rock', 'var(--bar)', 2], ['sa', 'San Antonio', 'var(--bar2)', 2]];
     const moLbl = mo => new Date(mo + '-15T12:00:00Z').toLocaleDateString('en-US', {month:'short', timeZone:'UTC'}) + " '" + mo.slice(2, 4);
-    let g = '';
+    let g = ''; const ends = [];
     for (let i = 0; i <= 4; i++) { const v = step * i; g += `<line x1="${L}" x2="${W - R + 8}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${L - 6}" y="${y(v) + 4}" text-anchor="end">$${v.toLocaleString('en-US')}</text>`; }
     rows.forEach((r, i) => { g += `<text x="${x(i)}" y="${H - 8}" text-anchor="middle">${moLbl(r.mo)}</text>`; });
     for (const [k, name, color, sw] of series) {
@@ -186,9 +186,11 @@ td.l,th.l{text-align:left}
       const last = rows[rows.length - 1];
       if (last.mo === curMo && rows.length > 1) { const prev = rows[rows.length - 2]; g += `<line x1="${x(rows.length - 2)}" y1="${y(prev[k])}" x2="${x(rows.length - 1)}" y2="${y(last[k])}" stroke="${color}" stroke-width="${sw}" stroke-dasharray="4 4"/>`; }
       rows.forEach((r, i) => { const partial = r.mo === curMo; g += `<circle cx="${x(i)}" cy="${y(r[k])}" r="3.5" fill="${partial ? 'var(--card)' : color}" stroke="${color}" stroke-width="2"><title>${moLbl(r.mo)}${partial ? ' (to date)' : ''} · ${name}: ${money(r[k])}</title></circle>`; });
-      const endY = y(rows[rows.length - 1][k]);
-      g += `<text x="${x(rows.length - 1) + 10}" y="${endY + 4}" style="fill:${color};font-weight:600">${name === 'All' ? 'All' : name === 'Round Rock' ? 'RR' : 'SA'}</text>`;
+      ends.push({ y: y(rows[rows.length - 1][k]), color, t: name === 'All' ? 'All' : name === 'Round Rock' ? 'RR' : 'SA' });
     }
+    ends.sort((a, b) => a.y - b.y);
+    for (let i = 1; i < ends.length; i++) if (ends[i].y - ends[i - 1].y < 13) ends[i].y = ends[i - 1].y + 13;
+    for (const e of ends) g += `<text x="${x(rows.length - 1) + 10}" y="${e.y + 4}" style="fill:${e.color};font-weight:600">${e.t}</text>`;
     const last = rows[rows.length - 1];
     return `<section class="card" id="mom"><div class="head"><h2>Sales by month</h2><span class="small muted"><b style="color:var(--ink)">—</b> All &nbsp; <b style="color:var(--bar)">—</b> Round Rock &nbsp; <b style="color:var(--bar2)">—</b> San Antonio${last.mo === curMo ? ' &nbsp;· open dot = month to date' : ''}</span></div>
       <svg viewBox="0 0 ${W} ${H}" width="100%" style="max-height:300px" role="img" aria-label="Sales by month for Round Rock, San Antonio and all machines">${g}</svg>
