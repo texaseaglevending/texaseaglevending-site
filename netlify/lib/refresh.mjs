@@ -25,8 +25,49 @@ export async function pullSales(store, token, start, end) {
     const day = t ? localDate(new Date(t)) : null;
     if (day && byDay[day]) byDay[day].push(slimSale(s));
   }
-  for (const [day, sales] of Object.entries(byDay)) await store.setJSON("sales/" + day, { day, pulledAt: new Date().toISOString(), sales });
+  const slim = {};
+  for (const [day, sales] of Object.entries(byDay)) {
+    slim[day] = sales;
+    await store.setJSON("sales/" + day, { day, pulledAt: new Date().toISOString(), sales });
+  }
+  await updateAgg(store, slim);
   return { days: Object.keys(byDay).length, sales: list.length };
+}
+
+// Money actually kept from one sale: what was paid, minus any refunded items.
+export function saleNet(s) {
+  if (s.refund) return 0;
+  const refunded = (s.items || []).filter((i) => i.refund).reduce((a, i) => a + Number(i.paid || 0), 0);
+  return Math.max(0, Number(s.paid || 0) - refunded);
+}
+
+// Per-day totals by machine and by product, kept in one blob ("agg") so the dashboard loads fast.
+// Each refresh or backfill rewrites only the days it pulled.
+export async function updateAgg(store, salesByDay) {
+  const agg = (await store.get("agg", { type: "json" })) || { days: {} };
+  for (const [day, sales] of Object.entries(salesByDay)) {
+    const d = { m: {}, p: {} };
+    for (const s of sales) {
+      const net = saleNet(s);
+      if (!(net > 0)) continue;
+      const m = (d.m[s.m] ||= { o: 0, r: 0, u: 0 });
+      m.o += 1; m.r += net;
+      const paidItems = (s.items || []).filter((i) => !i.refund);
+      const listed = paidItems.reduce((a, i) => a + Number(i.paid || 0), 0) || 1;
+      for (const it of paidItems) {
+        const q = Number(it.q || 0);
+        m.u += q;
+        const p = ((d.p[it.p] ||= {})[s.m] ||= { u: 0, r: 0 });
+        p.u += q;
+        p.r += net * (Number(it.paid || 0) / listed);
+      }
+    }
+    for (const m of Object.values(d.m)) m.r = Math.round(m.r * 100) / 100;
+    for (const byM of Object.values(d.p)) for (const v of Object.values(byM)) v.r = Math.round(v.r * 100) / 100;
+    agg.days[day] = d;
+  }
+  agg.updatedAt = new Date().toISOString();
+  await store.setJSON("agg", agg);
 }
 
 export async function refresh(context, { salesDays = 2 } = {}) {
