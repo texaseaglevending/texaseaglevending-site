@@ -50,6 +50,8 @@ a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
 td.l,th.l{text-align:left}
 .tag{display:inline-block;font-size:11px;padding:1px 6px;border-radius:999px;background:var(--soft);color:var(--muted)}
 .warn{color:var(--bad)}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;vertical-align:1px}
+.status{display:flex;gap:12px;flex-wrap:wrap;font-size:12px}
 </style>
 </head>
 <body>
@@ -76,6 +78,8 @@ td.l,th.l{text-align:left}
   catch (e) { app.innerHTML = '<div class="center card"><p>Could not load data. Try reloading.</p></div>'; return; }
   if (!snap || !agg) { app.innerHTML = '<div class="center card"><p>No data yet. The first refresh has not run.</p></div>'; return; }
 
+  let online = null;
+  get('online').then(d => { online = d; route(); }).catch(() => { online = []; });
   const M = snap.machines;
   const LOC = { RR: ['B101219', 'B111755'], SA: ['B101231', 'B111750'] };
   const mName = id => (M.find(m => m.id === id) || {}).name || id;
@@ -152,6 +156,7 @@ td.l,th.l{text-align:left}
       <div><h1><a href="#/" style="color:inherit">Texas Eagle Vending</a></h1><div class="muted small">Data as of ${esc(when)}${status && !status.ok ? ' <span class="warn">— last refresh failed</span>' : ''} · updates 6 AM, 12 PM, 6 PM, 12 AM</div></div>
       <div style="display:flex;gap:12px;align-items:center"><span class="muted small">${esc(s.email)}</span><form method="post" action="/api/auth/logout" style="margin:0"><button class="link">Sign out</button></form></div>
     </header>
+    <div class="status muted">${online ? online.map(o => `<span title="${o.online === false ? 'Not connected to haha right now' : o.online ? 'Connected to haha' : 'Status unknown'}"><span class="dot" style="background:${o.online === false ? 'var(--bad)' : o.online ? 'var(--good)' : 'var(--line)'}"></span>${mLink(o.id)} ${o.online === false ? '<b class="warn">offline</b>' : o.online ? 'online' : '?'}</span>`).join('') : 'Checking machines…'} <a href="#/restocks">Restocks ›</a></div>
     ${crumbs ? `<div class="crumbs"><a href="#/">Home</a> › ${crumbs}</div>` : ''}`;
 
   // Stacked bar chart of daily sales (RR dark, SA light) for a list of days
@@ -413,12 +418,44 @@ td.l,th.l{text-align:left}
       <p><a href="#/tx?from=${add(today, -6)}&to=${today}&m=${id}">See this machine's transactions ›</a></p>`;
   }
 
+  // ---------- Restocks (live from haha, read-only) ----------
+  async function restocks(q) {
+    const from = q.get('from') || add(today, -13), to = q.get('to') || today;
+    app.innerHTML = header('Restocks') + `
+      <section class="card"><form class="filters" id="rf">
+        <label>From<input type="date" name="from" value="${from}" max="${today}"></label>
+        <label>To<input type="date" name="to" value="${to}" max="${today}"></label>
+        <button class="btn" type="submit">Show</button>
+      </form><div class="small muted" style="margin-top:8px">Every restock, Adjust Stock and Dispose saved in haha, with the change to each product. Pulled live from haha.</div></section>
+      <section id="rres"><div class="card"><p class="muted">Loading from haha…</p></div></section>`;
+    document.getElementById('rf').onsubmit = e => { e.preventDefault(); const f = new FormData(e.target); location.hash = '#/restocks?from=' + f.get('from') + '&to=' + f.get('to'); };
+    let list;
+    try { list = await get(`restocks&from=${from}&to=${to}`); }
+    catch (e) { document.getElementById('rres').innerHTML = `<div class="card"><p class="warn">${esc(e.message)}</p></div>`; return; }
+    const num = v => v === undefined || v === null || v === '' ? null : Number(v);
+    const ch = c => {
+      const id = c.productId || c.product_id || c.goodsId;
+      const name = c.productName || c.product_name || c.goodsName || (id ? pName(id) : 'Product');
+      const after = num(c.afterNum ?? c.after_num ?? c.afterStock ?? c.after_stock ?? c.stockAfter);
+      const before = num(c.beforeNum ?? c.before_num ?? c.beforeStock ?? c.before_stock ?? c.stockBefore);
+      let chg = num(c.changeNum ?? c.change_num ?? c.adjustNum ?? c.quantity ?? c.num);
+      if (chg === null && after !== null && before !== null) chg = after - before;
+      return { id, name, before: before ?? (after !== null && chg !== null ? after - chg : null), after, chg };
+    };
+    document.getElementById('rres').innerHTML = list.length ? list.map(r => {
+      const rows = (r.changes || []).map(ch).filter(x => x.chg !== 0);
+      const net = rows.reduce((a, x) => a + (x.chg || 0), 0);
+      return `<div class="card" style="margin-bottom:12px"><div class="head"><h2>${esc(fmtTime(r.at))} · ${mLink(r.m)} · ${esc(r.label || 'Change')}</h2><span class="small muted">${rows.length} products · net ${net > 0 ? '+' : ''}${int(net)}${r.by ? ' · by ' + esc(r.by) : ''}</span></div>
+        ${r.changes === null ? '<p class="small muted">Product detail not available for this record.</p>' : rows.length ? `<div class="scroll"><table><thead><tr><th>Product</th><th>Before</th><th>Change</th><th>After</th></tr></thead><tbody>${rows.map(x => `<tr><td>${x.id ? pLink(x.id, x.name) : esc(x.name)}</td><td>${x.before ?? '—'}</td><td class="${x.chg < 0 ? 'warn' : ''}">${x.chg > 0 ? '+' : ''}${x.chg ?? '—'}</td><td>${x.after ?? '—'}</td></tr>`).join('')}</tbody></table></div>` : '<p class="small muted">No product changes.</p>'}</div>`;
+    }).join('') : '<div class="card"><p class="muted">No restocks or adjustments in these dates.</p></div>';
+  }
+
   async function route() {
     const h = location.hash.replace(/^#/, '') || '/';
     const [path, qs] = h.split('?');
     const q = new URLSearchParams(qs || '');
     window.scrollTo(0, 0);
-    const view = path === '/total' ? total : path === '/tx' ? () => tx(q) : path.startsWith('/product/') ? () => product(decodeURIComponent(path.slice(9))) : path.startsWith('/machine/') ? () => machine(path.slice(9)) : home;
+    const view = path === '/total' ? total : path === '/tx' ? () => tx(q) : path === '/restocks' ? () => restocks(q) : path.startsWith('/product/') ? () => product(decodeURIComponent(path.slice(9))) : path.startsWith('/machine/') ? () => machine(path.slice(9)) : home;
     const done = view();
     const addMom = () => { if (!document.getElementById('mom')) app.insertAdjacentHTML('beforeend', monthChart()); };
     addMom();
