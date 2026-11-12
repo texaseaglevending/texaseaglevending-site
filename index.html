@@ -713,6 +713,7 @@ html{scroll-behavior:smooth}
       function done(){ wrap.innerHTML='<div class="done"><strong>Thanks, we got it.</strong>'+t[0]+'<p class="closing">'+t[1]+'</p></div>'; }
       if(!live){ console.log('[preview] would send', d); done(); return; }
       st.textContent='Sending…';
+      try{ var c=Object.assign({},d); delete c.access_key; c.category=cat; fetch('/api/form-submit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(c),keepalive:true}).catch(function(){}); }catch(_){}
       fetch('https://api.web3forms.com/submit',{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(d)})
         .then(function(r){return r.json();})
         .then(function(j){ if(!j.success) throw new Error(); done(); })
