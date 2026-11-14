@@ -20,8 +20,8 @@
 <style>
 /* Layout: navy hero band with lead form on the right, then stacked white sections; gold rule ties to the printed flyer. Single deliberate light look. */
 :root{
-  --navy:#13294B; --navy-deep:#0C1C35; --gold:#F2A900; --gold-ink:#8A5A00;
-  --paper:#FFFFFF; --mist:#F3F5F9; --ink:#1B1B1F; --muted:#4A5060; --line:#D6DCE6; --on-navy:#DCE3EE;
+  --navy:#0B0B0B; --navy-deep:#000000; --gold:#BF5700; --gold-bright:#E07A2E; --gold-ink:#A04800;
+  --paper:#FFFFFF; --mist:#F4F4F4; --ink:#1B1B1F; --muted:#505050; --line:#DDDDDD; --on-navy:#E6E6E6;
   --display:"Archivo", "Arial Narrow", Arial, sans-serif;
   --body:"Inter", system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
   color-scheme: light;
@@ -33,8 +33,8 @@ body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--body);f
 h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0}
 a{color:var(--navy)}
 .eyebrow{font-family:var(--display);font-weight:800;font-size:13px;letter-spacing:2.2px;text-transform:uppercase;color:var(--gold-ink)}
-.btn{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:0 22px;border-radius:8px;background:var(--gold);color:var(--navy-deep);font-weight:700;font-size:16px;text-decoration:none;border:0;cursor:pointer;font-family:var(--body)}
-.btn:hover{background:#FFBE2E}
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:0 22px;border-radius:8px;background:var(--gold);color:#FFFFFF;font-weight:700;font-size:16px;text-decoration:none;border:0;cursor:pointer;font-family:var(--body)}
+.btn:hover{background:#A04800}
 .btn:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 
 /* header */
@@ -54,7 +54,7 @@ a{color:var(--navy)}
 .points li{display:flex;gap:12px;align-items:flex-start;color:#fff;font-size:16px}
 .points svg{flex:none;margin-top:2px}
 .stat{margin-top:32px;display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;color:var(--on-navy)}
-.stat b{font-family:var(--display);font-weight:900;font-size:40px;color:var(--gold);line-height:1}
+.stat b{font-family:var(--display);font-weight:900;font-size:40px;color:var(--gold-bright);line-height:1}
 
 /* form card */
 .card{background:var(--paper);color:var(--ink);border-radius:14px;padding:28px;box-shadow:0 18px 40px rgba(5,14,30,.35)}
@@ -116,9 +116,9 @@ footer a{color:#fff}
 /* chooser */
 .choices{display:grid;gap:14px}
 .choice{display:flex;align-items:center;gap:16px;padding:18px;border:2px solid var(--line);border-radius:12px;text-decoration:none;color:var(--ink);background:var(--paper);min-height:44px}
-.choice:hover{border-color:var(--navy);background:#F7F9FC}
-.choice-ico{flex:none;width:52px;height:52px;border-radius:12px;background:var(--navy);color:var(--gold);display:flex;align-items:center;justify-content:center}
-.choice-alt .choice-ico{background:var(--gold);color:var(--navy-deep)}
+.choice:hover{border-color:var(--navy);background:#F6F6F6}
+.choice-ico{flex:none;width:52px;height:52px;border-radius:12px;background:var(--navy);color:var(--gold-bright);display:flex;align-items:center;justify-content:center}
+.choice-alt .choice-ico{background:var(--gold);color:#FFFFFF}
 .choice-text{display:grid;gap:3px;min-width:0}
 .choice-who{font-family:var(--display);font-weight:800;font-size:12px;letter-spacing:1.6px;text-transform:uppercase;color:var(--gold-ink)}
 .choice strong{font-family:var(--display);font-size:19px;line-height:1.2;color:var(--navy)}
@@ -139,7 +139,7 @@ footer a{color:#fff}
 .contact legend{font-size:14px;font-weight:600;padding:0;margin-bottom:6px}
 .checks{display:flex;gap:10px;flex-wrap:wrap}
 .ck{display:flex;align-items:center;gap:10px;min-height:48px;padding:0 18px;border:1.5px solid var(--line);border-radius:8px;font-size:15px;cursor:pointer}
-.ck:has(input:checked){border-color:var(--navy);background:#EEF2F8}
+.ck:has(input:checked){border-color:var(--navy);background:#F3EDE8}
 .ck input,.consent input{width:20px;min-height:20px;height:20px;margin:0;flex:none;accent-color:var(--navy)}
 .consent{display:flex;gap:10px;align-items:flex-start;font-weight:400;font-size:14px;color:var(--muted)}
 .consent input{margin-top:2px}
@@ -149,7 +149,7 @@ footer a{color:#fff}
 .ta{position:relative}
 .ta-list{position:absolute;left:0;right:0;top:100%;z-index:5;margin:4px 0 0;padding:4px;list-style:none;background:var(--paper);border:1.5px solid var(--navy);border-radius:8px;box-shadow:0 10px 24px rgba(5,14,30,.18);max-height:300px;overflow:auto}
 .ta-list li{padding:11px 12px;border-radius:6px;cursor:pointer;font-size:15px}
-.ta-list li:hover,.ta-list li[aria-selected="true"]{background:#EEF2F8}
+.ta-list li:hover,.ta-list li[aria-selected="true"]{background:#F3EDE8}
 .ta-list li.ta-add{color:var(--gold-ink);font-weight:600;border-top:1px solid var(--line);border-radius:0 0 6px 6px}
 input:disabled{background:var(--mist);color:var(--muted)}
 .done .closing{margin:12px 0 0;font-style:italic;color:var(--muted)}
@@ -165,8 +165,8 @@ input:disabled{background:var(--mist);color:var(--muted)}
 .model-art img{width:auto;height:220px;max-width:92%;display:block;object-fit:contain}
 .model-body{padding:18px 20px 22px}
 .model-tags{display:flex;gap:8px;flex-wrap:wrap}
-.tag{font-size:12px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--navy);background:#E6ECF5;border-radius:999px;padding:4px 10px}
-.tag.live{background:var(--gold);color:var(--navy-deep)}
+.tag{font-size:12px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--navy);background:#EEEEEE;border-radius:999px;padding:4px 10px}
+.tag.live{background:var(--gold);color:#FFFFFF}
 .model h3{font-size:21px;color:var(--navy);font-weight:800;margin:10px 0 6px}
 .model p{margin:0;color:var(--muted)}
 .model p.fit{margin-top:10px;color:var(--ink);font-size:15px}
@@ -193,13 +193,13 @@ html{scroll-behavior:smooth}
   <section class="hero">
     <div class="wrap">
       <div>
-        <div class="eyebrow" style="color:var(--gold)">Austin · San Antonio · Surrounding areas</div>
+        <div class="eyebrow" style="color:var(--gold-bright)">Austin · San Antonio · Surrounding areas</div>
         <h1 style="margin-top:14px">Smart Vending.<br>Zero Cost to You.</h1>
         <p class="lead">AI-powered snack, drink and essentials machines, installed, stocked and serviced at your location for free.</p>
         <ul class="points">
-          <li><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#F2A900" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>No equipment cost and no fees to host</li>
-          <li><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#F2A900" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>We handle delivery, setup, restocking and maintenance</li>
-          <li><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#F2A900" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>Cashless, open 24/7: tap a card, open the door, grab and go</li>
+          <li><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#E07A2E" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>No equipment cost and no fees to host</li>
+          <li><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#E07A2E" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>We handle delivery, setup, restocking and maintenance</li>
+          <li><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#E07A2E" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>Cashless, open 24/7: tap a card, open the door, grab and go</li>
         </ul>
         <div class="stat"><b>6,700+</b><span>purchases served at our current locations</span></div>
       </div>
@@ -527,17 +527,17 @@ html{scroll-behavior:smooth}
       <p class="intro">Your people get snacks, drinks and essentials without leaving the building or the job site. We take care of everything behind it.</p>
       <div class="grid3">
         <div class="feature">
-          <svg aria-hidden="true" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#13294B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M15 9.5c-.5-1-1.6-1.5-3-1.5-1.7 0-3 .8-3 2s1.3 1.7 3 2 3 .8 3 2-1.3 2-3 2c-1.4 0-2.5-.5-3-1.5M12 6v2M12 16v2"/></svg>
+          <svg aria-hidden="true" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#0B0B0B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M15 9.5c-.5-1-1.6-1.5-3-1.5-1.7 0-3 .8-3 2s1.3 1.7 3 2 3 .8 3 2-1.3 2-3 2c-1.4 0-2.5-.5-3-1.5M12 6v2M12 16v2"/></svg>
           <h3>$0 to host</h3>
           <p>No equipment cost and no fees. You provide the space and a standard outlet.</p>
         </div>
         <div class="feature">
-          <svg aria-hidden="true" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#13294B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="7" width="13" height="10" rx="1"/><path d="M14 10h4l3 3v4h-7z"/><circle cx="6" cy="18" r="2"/><circle cx="17" cy="18" r="2"/></svg>
+          <svg aria-hidden="true" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#0B0B0B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="7" width="13" height="10" rx="1"/><path d="M14 10h4l3 3v4h-7z"/><circle cx="6" cy="18" r="2"/><circle cx="17" cy="18" r="2"/></svg>
           <h3>We handle it all</h3>
           <p>Delivery, setup, restocking and maintenance on a regular schedule, based on what sells at your location.</p>
         </div>
         <div class="feature">
-          <svg aria-hidden="true" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#13294B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20M6 15h4"/></svg>
+          <svg aria-hidden="true" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#0B0B0B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20M6 15h4"/></svg>
           <h3>Tap, grab, go</h3>
           <p>Smart AI machines: customers tap a card, open the door and take what they want. Cameras charge only for what leaves the shelf.</p>
         </div>
