@@ -53,7 +53,7 @@ td.l,th.l{text-align:left}
 .tag{display:inline-block;font-size:11px;padding:1px 6px;border-radius:999px;background:var(--soft);color:var(--muted)}
 .warn{color:var(--bad)}
 .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;vertical-align:1px}
-.status{display:flex;gap:12px;flex-wrap:wrap;font-size:12px}
+.status{display:grid;grid-template-columns:max-content max-content;column-gap:32px;row-gap:4px;font-size:12px}
 </style>
 </head>
 <body>
@@ -169,7 +169,7 @@ td.l,th.l{text-align:left}
       <div><h1><a href="#/" style="color:inherit">Texas Eagle Vending</a></h1><div class="muted small">${updating ? 'Updating from haha…' : 'Data as of ' + esc(whenOf())}${status && !status.ok ? ' <span class="warn">— last refresh failed</span>' : ''} · ${updating ? '' : '<button class="link small" id="refreshBtn">Refresh now</button> · '}updates when opened if older than 10 min, plus a nightly backup</div></div>
       <div style="display:flex;gap:12px;align-items:center"><span class="muted small">${esc(s.email)}</span><form method="post" action="/api/auth/logout" style="margin:0"><button class="link">Sign out</button></form></div>
     </header>
-    <div class="status muted">${online ? online.map(o => `<span title="${o.online === false ? 'Not connected to haha right now' : o.online ? 'Connected to haha' : 'Status unknown'}"><span class="dot" style="background:${o.online === false ? 'var(--bad)' : o.online ? 'var(--good)' : 'var(--line)'}"></span>${mLink(o.id)} ${o.online === false ? '<b class="warn">offline</b>' : o.online ? 'online' : '?'}</span>`).join('') : 'Checking machines…'}</div>
+    <div class="status muted">${online ? [...online].sort((a, b) => ['B101219','B111755','B101231','B111750'].indexOf(a.id) - ['B101219','B111755','B101231','B111750'].indexOf(b.id)).map(o => `<span title="${o.online === false ? 'Not connected to haha right now' : o.online ? 'Connected to haha' : 'Status unknown'}"><span class="dot" style="background:${o.online === false ? 'var(--bad)' : o.online ? 'var(--good)' : 'var(--line)'}"></span>${mLink(o.id)} ${o.online === false ? '<b class="warn">offline</b>' : o.online ? 'online' : '?'}</span>`).join('') : 'Checking machines…'}</div>
     <nav class="tabs" role="group" aria-label="View">${[['#/', 'Sales', 'sales'], ['#/stock', 'Restock', 'stock'], ['#/messages', 'Messages' + (forms.filter(isNew).length ? ' (' + forms.filter(isNew).length + ' new)' : ''), 'messages']].map(([h, t, k]) => `<a class="tab" href="${h}" aria-current="${curView() === k ? 'page' : 'false'}">${esc(t)}</a>`).join('')}</nav>
     ${crumbs ? `<div class="crumbs"><a href="#/">Home</a> › ${crumbs}</div>` : ''}`;
 
