@@ -32,7 +32,8 @@ th:first-child,td:first-child{text-align:left;white-space:normal}
 th{font-size:12px;color:var(--muted);font-weight:600}
 tr.total td{font-weight:700;background:var(--soft)}
 .scroll{overflow-x:auto}
-.inv{max-height:460px;overflow:auto}.inv td:first-child,.inv th:first-child{text-align:left;white-space:normal}.inv thead th{position:sticky;top:0;background:var(--card)}
+.tabs .tab{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:999px;padding:6px 14px;text-decoration:none;display:inline-block}.tabs .tab[aria-current=page]{background:var(--navy);border-color:var(--navy);color:#fff}nav.tabs{display:flex;gap:8px;flex-wrap:wrap}
+.stk td:first-child,.stk th:first-child{text-align:left;white-space:normal}.stk td{padding:5px 6px}.stk tr.zero td{color:var(--bad)}
 .head{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}
 .head h2{margin:0}
 .seg{display:flex;gap:4px}
@@ -162,12 +163,14 @@ td.l,th.l{text-align:left}
   const save = () => { try { localStorage.setItem('tev-dash', JSON.stringify(state)); } catch (e) {} };
 
   const whenOf = () => status && status.finishedAt ? new Date(status.finishedAt).toLocaleString('en-US', {timeZone:TZ, month:'short', day:'numeric', hour:'numeric', minute:'2-digit'}) : 'not yet';
+  const curView = () => { const p = (location.hash.replace(/^#/, '') || '/').split('?')[0]; return p === '/stock' ? 'stock' : p === '/messages' ? 'messages' : 'sales'; };
   const header = crumbs => `
     <header>
       <div><h1><a href="#/" style="color:inherit">Texas Eagle Vending</a></h1><div class="muted small">${updating ? 'Updating from haha…' : 'Data as of ' + esc(whenOf())}${status && !status.ok ? ' <span class="warn">— last refresh failed</span>' : ''} · ${updating ? '' : '<button class="link small" id="refreshBtn">Refresh now</button> · '}updates when opened if older than 10 min, plus a nightly backup</div></div>
       <div style="display:flex;gap:12px;align-items:center"><span class="muted small">${esc(s.email)}</span><form method="post" action="/api/auth/logout" style="margin:0"><button class="link">Sign out</button></form></div>
     </header>
-    <div class="status muted">${online ? online.map(o => `<span title="${o.online === false ? 'Not connected to haha right now' : o.online ? 'Connected to haha' : 'Status unknown'}"><span class="dot" style="background:${o.online === false ? 'var(--bad)' : o.online ? 'var(--good)' : 'var(--line)'}"></span>${mLink(o.id)} ${o.online === false ? '<b class="warn">offline</b>' : o.online ? 'online' : '?'}</span>`).join('') : 'Checking machines…'} <a href="#/restocks">Restocks ›</a> <a href="#/messages">Messages${forms.filter(isNew).length ? ' (' + forms.filter(isNew).length + ' new)' : ''} ›</a></div>
+    <div class="status muted">${online ? online.map(o => `<span title="${o.online === false ? 'Not connected to haha right now' : o.online ? 'Connected to haha' : 'Status unknown'}"><span class="dot" style="background:${o.online === false ? 'var(--bad)' : o.online ? 'var(--good)' : 'var(--line)'}"></span>${mLink(o.id)} ${o.online === false ? '<b class="warn">offline</b>' : o.online ? 'online' : '?'}</span>`).join('') : 'Checking machines…'}</div>
+    <nav class="tabs" role="group" aria-label="View">${[['#/', 'Sales', 'sales'], ['#/stock', 'Restock', 'stock'], ['#/messages', 'Messages' + (forms.filter(isNew).length ? ' (' + forms.filter(isNew).length + ' new)' : ''), 'messages']].map(([h, t, k]) => `<a class="tab" href="${h}" aria-current="${curView() === k ? 'page' : 'false'}">${esc(t)}</a>`).join('')}</nav>
     ${crumbs ? `<div class="crumbs"><a href="#/">Home</a> › ${crumbs}</div>` : ''}`;
 
   // Stacked bar chart of daily sales (RR dark, SA light) for a list of days
@@ -291,17 +294,6 @@ td.l,th.l{text-align:left}
     const rows = [...new Set([...Object.keys(cur.byP), ...active])].map(pid => ({ pid, u: (cur.byP[pid] || {}).u || 0, r: (cur.byP[pid] || {}).r || 0 }));
     const key = state.sellers === 'units' ? 'u' : 'r';
     const topList = rows.filter(x => x.u > 0).sort((a, b) => b[key] - a[key] || b.u - a.u).slice(0, 10);
-    // Stock in machines: haha's current count per product, in the machine's shelf order (as the Adjust Stock screen lists it). From the saved snapshot, so no extra haha calls.
-    const allM = M.map(m => m.id); const invM = allM.includes(state.invM) ? state.invM : shown[0];
-    const invStock = (snap.stock || {})[invM] || {}, invCap = (snap.capacity || {})[invM] || {};
-    const invOrder = [...(((snap.order || {})[invM]) || [])];
-    for (const pid of Object.keys(invStock)) if (!invOrder.includes(pid) && invStock[pid] > 0) invOrder.push(pid);
-    const invRows = invOrder.map(pid => ({ pid, q: invStock[pid] || 0, c: invCap[pid] || 0 }));
-    const invTot = invRows.reduce((a, r) => a + r.q, 0);
-    const invCell = r => r.q === 0 ? '<span class="warn">0</span>' : (r.c && r.q <= r.c / 2 ? '<span class="warn">' + int(r.q) + '</span>' : int(r.q));
-    const invTable = '<div class="inv"><table><thead><tr><th>Product</th><th>Stock</th><th>Std</th></tr></thead><tbody>' +
-      `<tr class="total"><td>${int(invRows.filter(r => r.q > 0).length)} products</td><td>${int(invTot)}</td><td>${int(invRows.reduce((a, r) => a + r.c, 0))}</td></tr>` +
-      (invRows.length ? invRows.map(r => `<tr><td>${pLink(r.pid)}</td><td>${invCell(r)}</td><td>${r.c || '<span class="muted">—</span>'}</td></tr>`).join('') : '<tr><td colspan="3" class="muted">No stock data yet</td></tr>') + '</tbody></table></div>';
     const sellTable = list => '<table><thead><tr><th>Product</th><th>Units</th><th>Sales</th></tr></thead><tbody>' + (list.length ? list.map(x => `<tr><td>${pLink(x.pid)}</td><td>${int(x.u)}</td><td>${money(x.r)}</td></tr>`).join('') : '<tr><td colspan="3" class="muted">No sales in this period</td></tr>') + '</tbody></table>';
     const lt = (latest || []).filter(x => !ids || ids.includes(x.m)).slice(0, 15);
     const pr = profitRange(P.a, P.b, ids), prp = profitRange(P.pa, P.pb, ids);
@@ -341,10 +333,7 @@ td.l,th.l{text-align:left}
         ${profTable}
         <p class="small muted" style="margin:8px 0 0">Profit = what customers paid, minus sales tax for each product's tax type, minus haha's card fee (5.95% + $0.05 per order), minus the product cost in haha. Before haha's $40 per machine monthly fee.</p>
       </section>
-      <section class="grid2">
-        <div class="card"><div class="head"><h2>Top 10 sellers</h2><div class="seg"><button data-s="units" aria-pressed="${state.sellers === 'units'}">Units</button><button data-s="sales" aria-pressed="${state.sellers === 'sales'}">Dollars</button></div></div>${sellTable(topList)}</div>
-        <div class="card"><div class="head"><h2>Stock in machines</h2><div class="seg" role="group" aria-label="Machine">${allM.map(id => `<button data-inv="${id}" aria-pressed="${id === invM}">${esc(mName(id))}</button>`).join('')}</div></div>${invTable}<p class="small muted" style="margin:8px 0 0">haha's count as of ${esc(whenOf())}, in shelf order. Red = empty or at half of standard stock or less. <a href="#/machine/${invM}">Full machine view ›</a></p></div>
-      </section>
+      <section class="card"><div class="head"><h2>Top 10 sellers</h2><div class="seg"><button data-s="units" aria-pressed="${state.sellers === 'units'}">Units</button><button data-s="sales" aria-pressed="${state.sellers === 'sales'}">Dollars</button></div></div>${sellTable(topList)}</section>
       <section class="card">
         <div class="head"><h2>Latest transactions</h2><a class="small" href="${txHref}">All transactions ›</a></div>
         ${txTable(lt)}
@@ -353,8 +342,33 @@ td.l,th.l{text-align:left}
     app.querySelectorAll('[data-p]').forEach(b => b.onclick = () => { state.period = b.dataset.p; save(); home(); });
     app.querySelectorAll('[data-loc]').forEach(b => b.onclick = () => { state.loc = b.dataset.loc; save(); home(); });
     app.querySelectorAll('[data-s]').forEach(b => b.onclick = () => { state.sellers = b.dataset.s; save(); home(); });
-    app.querySelectorAll('[data-inv]').forEach(b => b.onclick = () => { state.invM = b.dataset.inv; save(); home(); });
     document.getElementById('allp').onclick = () => { state.allProfit = !state.allProfit; save(); home(); };
+  }
+
+  // ---------- Restock: haha's current stock per machine (from the saved snapshot, no extra haha calls) ----------
+  const shortName = id => {
+    let n = pName(id);
+    n = n.replace(/\([^)]*\)/g, ' ')
+         .replace(/\.?\b\d+(\.\d+)?\s*(fl\.?\s*oz|oz|ml|g|ct|count|pk|pack|mg|caplets?|ea)\b\.?/gi, ' ')
+         .replace(/\b(travel size|movie box|theater box|share size|king size|sugar free)\b/gi, m => m.toLowerCase() === 'sugar free' ? 'SF' : ' ')
+         .replace(/\bextra strength\b/gi, 'ES').replace(/\bzero sugar\b/gi, 'ZS').replace(/\bcaffeinated\b/gi, 'Caff')
+         .replace(/\b(advance|advanced|medicated|headache|non-drowsy)\b/gi, ' ')
+         .replace(/(^|\s)\.(?=\s|$)/g, ' ').replace(/[|,]+/g, ' ').replace(/\s+/g, ' ').trim();
+    return n.length > 32 ? n.slice(0, 31).trim() + '…' : n;
+  };
+  function stockCard(id) {
+    const st = (snap.stock || {})[id] || {};
+    const ord = [...(((snap.order || {})[id]) || [])];
+    for (const pid of Object.keys(st)) if (!ord.includes(pid) && st[pid] > 0) ord.push(pid);
+    const tot = ord.reduce((a, pid) => a + (st[pid] || 0), 0);
+    return `<section class="card"><div class="head"><h2 style="margin:0">${mLink(id)}</h2><span class="small muted">${int(tot)} items</span></div>
+      <table class="stk"><thead><tr><th>Product</th><th>Qty</th></tr></thead><tbody>${ord.length ? ord.map(pid => { const q = st[pid] || 0; return `<tr class="${q ? '' : 'zero'}"><td title="${esc(pName(pid))}">${esc(shortName(pid))}</td><td>${int(q)}</td></tr>`; }).join('') : '<tr><td colspan="2" class="muted">No stock data yet</td></tr>'}</tbody></table></section>`;
+  }
+  function stockView() {
+    app.innerHTML = header('') + `
+      <div class="muted small">haha's stock count as of ${esc(whenOf())}, in shelf order. Red = 0.</div>
+      <section class="grid2">${stockCard('B101219')}${stockCard('B101231')}</section>
+      <section class="grid2">${stockCard('B111755')}${stockCard('B111750')}</section>`;
   }
 
   // ---------- Business total by day ----------
@@ -511,16 +525,16 @@ td.l,th.l{text-align:left}
     const q = new URLSearchParams(qs || '');
     const y = window.scrollY;
     if (!(opts && opts.keep)) window.scrollTo(0, 0);
-    const view = path === '/total' ? total : path === '/tx' ? () => tx(q) : path === '/restocks' ? () => restocks(q) : path === '/messages' ? () => messages(q) : path.startsWith('/product/') ? () => product(decodeURIComponent(path.slice(9))) : path.startsWith('/machine/') ? () => machine(path.slice(9)) : home;
+    const view = path === '/total' ? total : path === '/tx' ? () => tx(q) : path === '/restocks' ? () => restocks(q) : path === '/messages' ? () => messages(q) : path === '/stock' ? stockView : path.startsWith('/product/') ? () => product(decodeURIComponent(path.slice(9))) : path.startsWith('/machine/') ? () => machine(path.slice(9)) : home;
     const done = view();
     const rb = document.getElementById('refreshBtn'); if (rb) rb.onclick = () => refreshNow(true);
     if (opts && opts.keep) { if (done && done.then) done.then(() => window.scrollTo(0, y)); else window.scrollTo(0, y); }
-    const addMom = () => { if (!document.getElementById('mom')) app.insertAdjacentHTML('beforeend', monthChart()); };
+    const addMom = () => { if (curView() === 'sales' && !document.getElementById('mom')) app.insertAdjacentHTML('beforeend', monthChart()); };
     addMom();
     if (done && done.then) done.then(addMom);
   }
   // Views that re-render themselves (period, location, day-range buttons) keep the month chart at the bottom
-  new MutationObserver(() => { if (!document.getElementById('mom') && app.querySelector('header')) app.insertAdjacentHTML('beforeend', monthChart()); }).observe(app, { childList: true });
+  new MutationObserver(() => { if (curView() === 'sales' && !document.getElementById('mom') && app.querySelector('header')) app.insertAdjacentHTML('beforeend', monthChart()); }).observe(app, { childList: true });
   window.addEventListener('hashchange', route);
   route();
   refreshNow(false);
