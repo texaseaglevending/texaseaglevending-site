@@ -329,12 +329,12 @@ td.l,th.l{text-align:left}
         <div class="card kpi"><div class="lbl">Est. profit</div><div class="num">${money(pr.t.profit)}</div>${deltaHtml(pr.t.profit, prp.t.profit, P.vs)}<div class="delta muted">${pct(pr.t.profit, pr.t.r - pr.t.tax)} of sales after tax · before haha's monthly fee</div></div>
       </section>
       <section class="card">
-        <div class="head"><h2>By machine</h2><a class="small" href="#/total">Business total by day ›</a></div>
-        <div class="scroll"><table><thead><tr><th>Machine</th><th>Sales</th><th>Orders</th><th>Items</th><th>Avg order</th><th>vs ${esc(P.vs)}</th></tr></thead><tbody>${mt}</tbody></table></div>
-      </section>
-      <section class="card">
         <div class="head"><h2>Daily sales, last 30 days</h2>${legend}</div>
         ${barChart(lastDays(30), ids)}
+      </section>
+      <section class="card">
+        <div class="head"><h2>By machine</h2><a class="small" href="#/total">Business total by day ›</a></div>
+        <div class="scroll"><table><thead><tr><th>Machine</th><th>Sales</th><th>Orders</th><th>Items</th><th>Avg order</th><th>vs ${esc(P.vs)}</th></tr></thead><tbody>${mt}</tbody></table></div>
       </section>
       <section class="card">
         <div class="head"><h2>Latest transactions</h2><a class="small" href="${txHref}">All transactions ›</a></div>
