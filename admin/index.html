@@ -333,20 +333,12 @@ td.l,th.l{text-align:left}
         ${barChart(lastDays(30), ids)}
       </section>
       <section class="card">
-        <div class="head"><h2>Profit by product</h2><button class="link small" id="allp">${state.allProfit ? 'Show top 15' : 'Show all ' + profRows.length}</button></div>
-        ${profTable}
-        <p class="small muted" style="margin:8px 0 0">Profit = what customers paid, minus sales tax for each product's tax type, minus haha's card fee (5.95% + $0.05 per order), minus the product cost in haha. Before haha's $40 per machine monthly fee.</p>
-      </section>
-      <section class="card"><div class="head"><h2>Top 10 sellers</h2><div class="seg"><button data-s="units" aria-pressed="${state.sellers === 'units'}">Units</button><button data-s="sales" aria-pressed="${state.sellers === 'sales'}">Dollars</button></div></div>${sellTable(topList)}</section>
-      <section class="card">
         <div class="head"><h2>Latest transactions</h2><a class="small" href="${txHref}">All transactions ›</a></div>
         ${txTable(lt)}
       </section>
       <p class="muted small">View only. Sales are what customers paid, tax included, minus refunds.</p>`;
     app.querySelectorAll('[data-p]').forEach(b => b.onclick = () => { state.period = b.dataset.p; save(); home(); });
     app.querySelectorAll('[data-loc]').forEach(b => b.onclick = () => { state.loc = b.dataset.loc; save(); home(); });
-    app.querySelectorAll('[data-s]').forEach(b => b.onclick = () => { state.sellers = b.dataset.s; save(); home(); });
-    document.getElementById('allp').onclick = () => { state.allProfit = !state.allProfit; save(); home(); };
   }
 
   // ---------- Restock: haha's current stock per machine (from the saved snapshot, no extra haha calls) ----------
