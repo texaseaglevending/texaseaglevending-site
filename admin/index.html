@@ -292,7 +292,7 @@ td.l,th.l{text-align:left}
     const key = state.sellers === 'units' ? 'u' : 'r';
     const topList = rows.filter(x => x.u > 0).sort((a, b) => b[key] - a[key] || b.u - a.u).slice(0, 10);
     // Stock in machines: haha's current count per product, in the machine's shelf order (as the Adjust Stock screen lists it). From the saved snapshot, so no extra haha calls.
-    const invM = shown.includes(state.invM) ? state.invM : shown[0];
+    const allM = M.map(m => m.id); const invM = allM.includes(state.invM) ? state.invM : shown[0];
     const invStock = (snap.stock || {})[invM] || {}, invCap = (snap.capacity || {})[invM] || {};
     const invOrder = [...(((snap.order || {})[invM]) || [])];
     for (const pid of Object.keys(invStock)) if (!invOrder.includes(pid) && invStock[pid] > 0) invOrder.push(pid);
@@ -343,7 +343,7 @@ td.l,th.l{text-align:left}
       </section>
       <section class="grid2">
         <div class="card"><div class="head"><h2>Top 10 sellers</h2><div class="seg"><button data-s="units" aria-pressed="${state.sellers === 'units'}">Units</button><button data-s="sales" aria-pressed="${state.sellers === 'sales'}">Dollars</button></div></div>${sellTable(topList)}</div>
-        <div class="card"><div class="head"><h2>Stock in machines</h2><div class="seg" role="group" aria-label="Machine">${shown.map(id => `<button data-inv="${id}" aria-pressed="${id === invM}">${esc(mName(id))}</button>`).join('')}</div></div>${invTable}<p class="small muted" style="margin:8px 0 0">haha's count as of ${esc(whenOf())}, in shelf order. Red = empty or at half of standard stock or less. <a href="#/machine/${invM}">Full machine view ›</a></p></div>
+        <div class="card"><div class="head"><h2>Stock in machines</h2><div class="seg" role="group" aria-label="Machine">${allM.map(id => `<button data-inv="${id}" aria-pressed="${id === invM}">${esc(mName(id))}</button>`).join('')}</div></div>${invTable}<p class="small muted" style="margin:8px 0 0">haha's count as of ${esc(whenOf())}, in shelf order. Red = empty or at half of standard stock or less. <a href="#/machine/${invM}">Full machine view ›</a></p></div>
       </section>
       <section class="card">
         <div class="head"><h2>Latest transactions</h2><a class="small" href="${txHref}">All transactions ›</a></div>
