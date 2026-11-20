@@ -43,7 +43,7 @@ svg text{fill:var(--muted);font-size:11px}
 @media (prefers-color-scheme:dark){.btn{color:#111316}}
 .link{background:none;border:0;color:var(--accent);font:inherit;cursor:pointer;padding:0}
 .center{max-width:420px;margin:12vh auto;text-align:center}
-.tx td:nth-child(2),.tx th:nth-child(2),.tx td:nth-child(3),.tx th:nth-child(3){white-space:normal;text-align:left}.tx td:nth-child(3){color:var(--muted)}
+.tx td:nth-child(3),.tx th:nth-child(3){white-space:normal;text-align:left}.tx td:nth-child(2),.tx th:nth-child(2){text-align:left}.tx td:nth-child(3){color:var(--muted)}
 a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
 .crumbs{font-size:13px}.crumbs a{margin-right:6px}
 .filters{display:flex;gap:8px;flex-wrap:wrap;align-items:end}
@@ -199,8 +199,10 @@ td.l,th.l{text-align:left}
   const legend = '<span class="small muted"><span style="color:var(--bar)">■</span> Round Rock &nbsp; <span style="color:var(--bar2)">■</span> San Antonio</span>';
   const lastDays = n => { const out = []; for (let i = n - 1; i >= 0; i--) out.push(add(today, -i)); return out; };
 
+  // Compact time for transaction rows: 11/19 9:58p
+  const txTime = t => { const p = Object.fromEntries(new Intl.DateTimeFormat('en-US', {timeZone:TZ, month:'numeric', day:'numeric', hour:'numeric', minute:'2-digit', hour12:true}).formatToParts(new Date(t)).map(x => [x.type, x.value])); return `${p.month}/${p.day} ${p.hour}:${p.minute}${(p.dayPeriod || '').charAt(0).toLowerCase()}`; };
   const txTable = list => `<div class="scroll"><table class="tx"><thead><tr><th>Time</th><th>Machine</th><th>Items</th><th>Paid</th></tr></thead><tbody>${
-    list.length ? list.map(x => `<tr><td>${esc(fmtTime(x.at))}</td><td>${mLink(x.m)}</td><td>${(x.items || []).map(i => (i.q > 1 ? i.q + '× ' : '') + pLink(i.p, i.n) + ' <span class="muted">' + money(Number(i.price)) + '</span>' + (i.refund ? ' <span class="tag">refunded</span>' : '')).join(', ')}</td><td>${money(x.paid)}${x.refund ? ' <span class="tag">refunded</span>' : ''}</td></tr>`).join('') : '<tr><td colspan="4" class="muted">No sales match</td></tr>'
+    list.length ? list.map(x => `<tr><td>${esc(txTime(x.at))}</td><td>${mLink(x.m)}</td><td>${(x.items || []).map(i => (i.q > 1 ? i.q + '× ' : '') + pLink(i.p, i.n) + ' <span class="muted">' + money(Number(i.price)) + '</span>' + (i.refund ? ' <span class="tag">refunded</span>' : '')).join(', ')}</td><td>${money(x.paid)}${x.refund ? ' <span class="tag">refunded</span>' : ''}</td></tr>`).join('') : '<tr><td colspan="4" class="muted">No sales match</td></tr>'
   }</tbody></table></div>`;
 
 
