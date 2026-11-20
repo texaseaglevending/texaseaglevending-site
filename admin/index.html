@@ -170,7 +170,7 @@ td.l,th.l{text-align:left}
       <div style="display:flex;gap:12px;align-items:center"><span class="muted small">${esc(s.email)}</span><form method="post" action="/api/auth/logout" style="margin:0"><button class="link">Sign out</button></form></div>
     </header>
     <div class="status muted">${online ? [...online].sort((a, b) => ['B101219','B111755','B101231','B111750'].indexOf(a.id) - ['B101219','B111755','B101231','B111750'].indexOf(b.id)).map(o => `<span title="${o.online === false ? 'Not connected to haha right now' : o.online ? 'Connected to haha' : 'Status unknown'}"><span class="dot" style="background:${o.online === false ? 'var(--bad)' : o.online ? 'var(--good)' : 'var(--line)'}"></span>${mLink(o.id)} ${o.online === false ? '<b class="warn">offline</b>' : o.online ? 'online' : '?'}</span>`).join('') : 'Checking machines…'}</div>
-    <nav class="tabs" role="group" aria-label="View">${[['#/', 'Sales', 'sales'], ['#/stock', 'Restock', 'stock'], ['#/messages', 'Messages' + (forms.filter(isNew).length ? ' (' + forms.filter(isNew).length + ' new)' : ''), 'messages']].map(([h, t, k]) => `<a class="tab" href="${h}" aria-current="${curView() === k ? 'page' : 'false'}">${esc(t)}</a>`).join('')}</nav>
+    <nav class="tabs" role="group" aria-label="View">${[['#/', 'Sales', 'sales'], ['#/stock', 'Restock', 'stock'], ['#/messages', 'Messages', 'messages']].map(([h, t, k]) => { const n = k === 'messages' ? forms.filter(isUnread).length : 0; return `<a class="tab" href="${h}" aria-current="${curView() === k ? 'page' : 'false'}">${k === 'messages' ? `<span class="dot" style="background:${n ? 'var(--bar)' : 'var(--line)'}" title="${n ? n + ' unread' : 'No unread messages'}"></span>` : ''}${esc(t)}${n ? ' (' + n + ' new)' : ''}</a>`; }).join('')}</nav>
     ${crumbs ? `<div class="crumbs"><a href="#/">Home</a> › ${crumbs}</div>` : ''}`;
 
   // Stacked bar chart of daily sales (RR dark, SA light) for a list of days
@@ -252,7 +252,11 @@ td.l,th.l{text-align:left}
   const CAT_SHORT = { 'Refund Request': 'Problem with a purchase', 'Card Payment Issue': 'Card payment issue', 'New Machine Request': 'New machine request', 'Product Suggestion': 'Product suggestion' };
   const FIELD_LABELS = { name: 'Name', business: 'Business', email: 'Email', phone: 'Phone', contact_by: 'Contact by', ok_to_text: 'OK to text', location: 'Location', location_type: 'Location type', people_on_site: 'People on site', machine: 'Machine', issue: 'Issue', amount_charged: 'Amount charged', purchase_date: 'Purchase date', purchase_time: 'Purchase time', product_category: 'Category', product: 'Product', on_our_list: 'On our list', message: 'Message' };
   const gmailLink = f => 'https://mail.google.com/mail/u/?authuser=texaseaglevending@gmail.com#search/' + encodeURIComponent('subject:"' + (f.subject || '') + '"');
-  const isNew = f => Date.now() - Date.parse(f.at) < 48 * 3600e3;
+  // Unread = sent after this browser last opened the Messages view (kept in this browser only).
+  let seenAt = 0; try { seenAt = Number(localStorage.getItem('tev-msg-seen')) || 0; } catch (e) {}
+  let visitBase = null;
+  const isUnread = f => Date.parse(f.at) > seenAt;
+  const isNew = f => Date.parse(f.at) > (visitBase ?? seenAt);
   const formCard = f => {
     const x = f.fields || {};
     const who = x.business || x.name || (f.category === 'Product Suggestion' ? (x.product || 'Suggestion') : 'Website visitor');
@@ -269,6 +273,7 @@ td.l,th.l{text-align:left}
       ${recent.length ? recent.slice(0, 5).map(formCard).join('') : '<p class="muted small" style="margin:0">No website form messages in the last 30 days. New ones show here the moment they are sent.</p>'}</section>`;
   }
   function messages(q) {
+    if (visitBase === null) { visitBase = seenAt; seenAt = Date.now(); try { localStorage.setItem('tev-msg-seen', String(seenAt)); } catch (e) {} }
     const cat = q.get('cat') || '';
     const list = forms.filter(f => !cat || f.category === cat);
     app.innerHTML = header('Customer messages') + `
@@ -524,6 +529,7 @@ td.l,th.l{text-align:left}
     const q = new URLSearchParams(qs || '');
     const y = window.scrollY;
     if (!(opts && opts.keep)) window.scrollTo(0, 0);
+    if (path !== '/messages') visitBase = null;
     const view = path === '/total' ? total : path === '/tx' ? () => tx(q) : path === '/restocks' ? () => restocks(q) : path === '/messages' ? () => messages(q) : path === '/stock' ? stockView : path.startsWith('/product/') ? () => product(decodeURIComponent(path.slice(9))) : path.startsWith('/machine/') ? () => machine(path.slice(9)) : home;
     const done = view();
     const rb = document.getElementById('refreshBtn'); if (rb) rb.onclick = () => refreshNow(true);
