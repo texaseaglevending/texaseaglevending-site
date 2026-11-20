@@ -98,16 +98,19 @@ export async function refresh(context, { salesDays = 2, catchUp = true } = {}) {
       if (!products[p.productId]) products[p.productId] = { name: p.productName, alias: p.alias || null, barcode: p.productCode || null, cost: null, price: null };
       for (const m of p.markets || []) (stock[m.marketId] ||= {})[p.productId] = m.stock;
     }
-    const capacity = {};
+    const capacity = {}, order = {};
     for (const m of MACHINES) {
       const pg = await getOne("/open/api/v1/markets/" + m.id + "/planograms", token).catch(() => null);
-      capacity[m.id] = {};
-      for (const r of (pg && pg.racks) || []) for (const c of r.cells || []) if (c.productId) capacity[m.id][c.productId] = (capacity[m.id][c.productId] || 0) + (c.productsCapacity || 0);
+      capacity[m.id] = {}; order[m.id] = [];
+      for (const r of (pg && pg.racks) || []) for (const c of r.cells || []) if (c.productId) {
+        capacity[m.id][c.productId] = (capacity[m.id][c.productId] || 0) + (c.productsCapacity || 0);
+        if (!order[m.id].includes(c.productId)) order[m.id].push(c.productId); // shelf order, top to bottom as haha lists it
+      }
     }
     const today = localDate();
     const sales = await pullSales(store, token, addDays(today, 1 - salesDays), today);
     for (const [id, p] of Object.entries(products)) { p.tax = taxType(p.name); if (needsCheck(p.name)) p.taxCheck = true; }
-    const snapshot = { pulledAt: new Date().toISOString(), machines: MACHINES, products, stock, capacity };
+    const snapshot = { pulledAt: new Date().toISOString(), machines: MACHINES, products, stock, capacity, order };
     await store.setJSON("snapshot", snapshot);
     const status = { ok: true, startedAt: started, finishedAt: new Date().toISOString(), productCount: Object.keys(products).length, salesPulled: sales, lastSalesDay: today };
     await store.setJSON("status", status);
