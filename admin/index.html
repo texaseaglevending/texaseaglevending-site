@@ -309,7 +309,6 @@ td.l,th.l{text-align:left}
         <div class="tabs" role="group" aria-label="Period">${Object.keys(names).map(k => `<button data-p="${k}" aria-pressed="${state.period === k}">${names[k]}</button>`).join('')}</div>
         <div class="seg" role="group" aria-label="Location">${locBtn('', 'All')}${locBtn('RR', 'Round Rock')}${locBtn('SA', 'San Antonio')}</div>
       </div>
-      ${messagesPanel()}
       <div class="muted small" style="margin-top:-6px">${esc(names[state.period])}: ${esc(label(P.a, P.b))}</div>
       <section class="kpis">
         <a class="card kpi" href="${txHref}" style="color:inherit;text-decoration:none"><div class="lbl">Sales</div><div class="num">${money(cur.r)}</div>${deltaHtml(cur.r, prev.r, P.vs)}</a>
